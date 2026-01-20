@@ -24,7 +24,7 @@ class QdrantRAG:
             url: Qdrant server URL
             collection: Collection name
         """
-        self.client = QdrantClient(url=url)
+        self.client = QdrantClient(url=url, check_compatibility=False)
         self.collection = collection
 
     def upsert(self, doc: VectorDocument, embedding: list[float]) -> None:
@@ -100,11 +100,12 @@ class QdrantRAG:
         Returns:
             List of similar documents with scores
         """
-        results = self.client.search(
+        response = self.client.query_points(
             collection_name=self.collection,
-            query_vector=query_embedding,
+            query=query_embedding,
             limit=top_k,
             score_threshold=score_threshold,
+            with_payload=True,
         )
         return [
             SearchResult(
@@ -114,7 +115,7 @@ class QdrantRAG:
                 url=r.payload["url"],
                 score=r.score,
             )
-            for r in results
+            for r in response.points
             if r.payload
         ]
 
