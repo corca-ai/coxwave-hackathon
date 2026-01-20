@@ -1,0 +1,3 @@
+{"id":"planner-01","context":{"original_query":"RAG for legal QA 2020-2024","final":{"interpreted_query":"RAG impact in legal QA (2020-2024)","assumptions":["Use peer-reviewed and industry reports"]}},"expect":{"min_steps":3,"min_success_criteria":1,"min_data_needs":1}}
+{"id":"planner-02","context":{"original_query":"GraphDB ontology design","final":{"interpreted_query":"Designing a GraphDB ontology for research claims","assumptions":[]}},"expect":{"min_steps":3,"min_success_criteria":1,"min_data_needs":1}}
+{"id":"planner-03","context":{"original_query":"AI safety policy landscape","final":{"interpreted_query":"AI safety policy landscape 2021-2025","assumptions":["Focus on US/EU policy"]}},"expect":{"min_steps":3,"min_success_criteria":1,"min_data_needs":1}}
