@@ -79,6 +79,22 @@ export default function AppClient() {
   }, []);
 
   useEffect(() => {
+    const storedBundle = window.localStorage.getItem("rn_last_run_bundle");
+    const storedEvents = window.localStorage.getItem("rn_last_stream_events");
+    if (storedBundle && storedEvents) {
+      try {
+        const parsedBundle = parseRunBundle(JSON.parse(storedBundle));
+        const parsedEvents = parseStreamEvents(storedEvents);
+        setRunBundle(parsedBundle);
+        setSelectedStep(parsedBundle.steps[0] ?? null);
+        setStreamEvents(parsedEvents);
+        setStreamCursor(Math.min(parsedEvents.length, maxEvents));
+        setSelectedEvent(parsedEvents[0] ?? null);
+        return;
+      } catch (err) {
+        console.warn("Failed to load stored run bundle:", err);
+      }
+    }
     void loadSample();
   }, []);
 

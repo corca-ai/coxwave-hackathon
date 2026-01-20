@@ -3,6 +3,9 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { prettyJson } from "../lib/json";
+import { parseRunBundle } from "../lib/run-bundle";
+import { parseStreamEvents } from "../lib/stream";
+import type { RunStep, StreamEvent } from "../lib/types";
 
 interface ClarifyOutput {
   is_clear_enough: boolean;
@@ -54,6 +57,9 @@ export default function ClarifyClient() {
   const [status, setStatus] = useState<"idle" | "asking" | "awaiting" | "clear" | "error">(
     "idle"
   );
+  const [pipelineStatus, setPipelineStatus] = useState<
+    "idle" | "running" | "done" | "error"
+  >("idle");
   const [error, setError] = useState<string | null>(null);
 
   const clarifierContext = useMemo(() => {
@@ -107,15 +113,22 @@ export default function ClarifyClient() {
           answers: [],
           skipped: false
         };
-        setRounds((prev) => [...prev, round]);
+        const nextRounds = [...rounds, round];
+        setRounds(nextRounds);
         setStatus("clear");
         setMessages((prev) => [
           ...prev,
           {
             role: "assistant",
-            text: `Thanks. I have enough context.\nInterpreted query: ${payload.interpreted_query}`
+            text: `Thanks. I have enough context.\nInterpreted query: ${payload.interpreted_query}\nRunning the research workflow now...`
           }
         ]);
+        const nextContext = {
+          original_query: originalQuery,
+          rounds: nextRounds,
+          final: payload
+        };
+        void runPipelineStream(nextContext);
       }
     } catch (err) {
       setStatus("error");
@@ -138,6 +151,7 @@ export default function ClarifyClient() {
     setPendingOutput(null);
     setPendingQuestions([]);
     setAnswerDrafts([]);
+    setPipelineStatus("idle");
     runClarifier(trimmed);
   }
 
@@ -158,16 +172,16 @@ export default function ClarifyClient() {
       answer: answerDrafts[index]?.trim() ?? ""
     }));
 
-    setAllAnswers((prev) => [...prev, ...answers]);
-    setRounds((prev) => [
-      ...prev,
-      {
-        input: pendingInput,
-        output: pendingOutput,
-        answers,
-        skipped: false
-      }
-    ]);
+    const mergedAnswers = [...allAnswers, ...answers];
+    setAllAnswers(mergedAnswers);
+    const round: ClarifyRound = {
+      input: pendingInput,
+      output: pendingOutput,
+      answers,
+      skipped: false
+    };
+    const nextRounds = [...rounds, round];
+    setRounds(nextRounds);
     setPendingOutput(null);
     setPendingQuestions([]);
     setAnswerDrafts([]);
@@ -179,7 +193,7 @@ export default function ClarifyClient() {
       }
     ]);
 
-    const followup = buildFollowupQuery(originalQuery, [...allAnswers, ...answers]);
+    const followup = buildFollowupQuery(originalQuery, mergedAnswers);
     runClarifier(followup);
   }
 
@@ -187,23 +201,28 @@ export default function ClarifyClient() {
     if (!pendingOutput) {
       return;
     }
-    setRounds((prev) => [
-      ...prev,
-      {
-        input: pendingInput,
-        output: pendingOutput,
-        answers: [],
-        skipped: true
-      }
-    ]);
+    const round: ClarifyRound = {
+      input: pendingInput,
+      output: pendingOutput,
+      answers: [],
+      skipped: true
+    };
+    const nextRounds = [...rounds, round];
+    setRounds(nextRounds);
     setPendingOutput(null);
     setPendingQuestions([]);
     setAnswerDrafts([]);
     setStatus("clear");
     setMessages((prev) => [
       ...prev,
-      { role: "assistant", text: "Clarification skipped. Proceeding with current context." }
+      { role: "assistant", text: "Proceeding with current context. Running the workflow now..." }
     ]);
+    const nextContext = {
+      original_query: originalQuery,
+      rounds: nextRounds,
+      final: pendingOutput
+    };
+    void runPipelineStream(nextContext);
   }
 
   function reset() {
@@ -218,7 +237,196 @@ export default function ClarifyClient() {
     setAllAnswers([]);
     setMessages([]);
     setStatus("idle");
+    setPipelineStatus("idle");
     setError(null);
+  }
+
+  async function runPipelineStream(context: unknown) {
+    setPipelineStatus("running");
+    setError(null);
+
+    const streamEventsBuffer: StreamEvent[] = [];
+    let firstTimestamp: string | null = null;
+    let planOutput: unknown = null;
+    let clarifierOutput: unknown = null;
+
+    type StepState = { input?: unknown; output?: unknown; status?: RunStep["status"] };
+    const stepState: Partial<Record<RunStep["name"], StepState>> = {};
+    const stepOrder: RunStep["name"][] = [
+      "clarify",
+      "plan",
+      "search",
+      "extract",
+      "verify",
+      "write",
+      "visualize"
+    ];
+    const agentToStep: Record<string, RunStep["name"]> = {
+      clarifier: "clarify",
+      searcher: "search",
+      extractor: "extract",
+      verifier: "verify",
+      visualizer: "visualize"
+    };
+
+    const ensureStep = (name: RunStep["name"]): StepState => {
+      if (!stepState[name]) {
+        stepState[name] = {};
+      }
+      return stepState[name] as StepState;
+    };
+
+    const setStepInput = (name: RunStep["name"], input: unknown) => {
+      const step = ensureStep(name);
+      if (step.input === undefined) {
+        step.input = input ?? null;
+      }
+    };
+
+    const setStepOutput = (name: RunStep["name"], output: unknown) => {
+      const step = ensureStep(name);
+      step.output = output ?? null;
+      if (!step.status) {
+        step.status = "ok";
+      }
+    };
+
+    try {
+      const response = await fetch(`${API_BASE}/api/run/stream`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          query: originalQuery,
+          skip_clarify: true,
+          clarified_context: JSON.stringify(context)
+        })
+      });
+
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(text || `Pipeline error: ${response.status}`);
+      }
+
+      if (!response.body) {
+        throw new Error("Pipeline stream response body is empty.");
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) {
+          break;
+        }
+        buffer += decoder.decode(value, { stream: true });
+
+        const parts = buffer.split("\n\n");
+        buffer = parts.pop() ?? "";
+
+        for (const part of parts) {
+          const lines = part.split("\n").map((line) => line.trim());
+          for (const line of lines) {
+            if (!line.startsWith("data:")) {
+              continue;
+            }
+            const payloadText = line.replace(/^data:\s*/, "");
+            if (!payloadText || payloadText === "[DONE]") {
+              continue;
+            }
+
+            const [normalized] = parseStreamEvents(payloadText);
+            if (!normalized) {
+              continue;
+            }
+
+            if (!firstTimestamp) {
+              firstTimestamp = normalized.timestamp;
+            }
+
+            streamEventsBuffer.push(normalized);
+
+            const agent = normalized.agent ?? "";
+            const stepName = agentToStep[agent];
+
+            if (normalized.type === "agent_start" && stepName) {
+              const payload = normalized.payload as { input?: unknown } | null;
+              setStepInput(stepName, payload?.input ?? null);
+            }
+
+            if (normalized.type === "agent_complete" && stepName) {
+              const payload = normalized.payload as { output?: unknown } | null;
+              setStepOutput(stepName, payload?.output ?? null);
+              if (stepName === "clarify") {
+                clarifierOutput = payload?.output ?? null;
+                if (clarifierOutput) {
+                  setStepInput("plan", { clarifier: clarifierOutput });
+                }
+              }
+            }
+
+            if (normalized.type === "plan_complete") {
+              const payload = normalized.payload as { plan?: unknown } | null;
+              planOutput = payload?.plan ?? null;
+              setStepOutput("plan", planOutput);
+              if (clarifierOutput) {
+                setStepInput("plan", { clarifier: clarifierOutput });
+              }
+            }
+
+            if (normalized.type === "write_complete") {
+              const payload = normalized.payload as { report?: unknown } | null;
+              setStepOutput("write", payload?.report ?? null);
+              if (planOutput || clarifierOutput) {
+                setStepInput("write", { clarifier: clarifierOutput, plan: planOutput });
+              }
+            }
+
+            if (normalized.type === "agent_complete" && agent === "orchestrator") {
+              const payload = normalized.payload as { output?: { report?: unknown } } | null;
+              if (payload?.output?.report && !stepState.write?.output) {
+                setStepOutput("write", payload.output.report);
+              }
+            }
+          }
+        }
+      }
+
+      const steps: RunStep[] = [];
+      for (const name of stepOrder) {
+        const step = stepState[name];
+        if (!step) {
+          continue;
+        }
+        if (step.input === undefined && step.output === undefined) {
+          continue;
+        }
+        steps.push({
+          name,
+          input: step.input ?? null,
+          output: step.output ?? null,
+          status: step.status
+        });
+      }
+
+      const runCandidate = {
+        run_id: `run_pipeline_${Date.now()}`,
+        created_at: firstTimestamp ?? new Date().toISOString(),
+        query: originalQuery,
+        meta: { mode: "server", api_base: API_BASE },
+        steps
+      };
+
+      const parsed = parseRunBundle(runCandidate);
+      localStorage.setItem("rn_last_run_bundle", JSON.stringify(parsed));
+      localStorage.setItem("rn_last_stream_events", JSON.stringify(streamEventsBuffer));
+
+      setPipelineStatus("done");
+    } catch (err) {
+      setPipelineStatus("error");
+      setError(err instanceof Error ? err.message : "Pipeline run failed.");
+    }
   }
 
   return (
@@ -227,9 +435,9 @@ export default function ClarifyClient() {
         <div className="header-top">
           <div className="title-block">
             <h1 className="title">Research Navigator</h1>
-            <p className="subtitle">Clarify the research question before running the pipeline.</p>
+            <p className="subtitle">Start with a clear research question.</p>
           </div>
-          <span className="badge">Clarifier</span>
+          <span className="badge">Research Intake</span>
         </div>
         <div className="controls">
           <div className="control-group">
@@ -241,7 +449,7 @@ export default function ClarifyClient() {
               onChange={(event) => setQueryInput(event.target.value)}
             />
             <button className="button primary" type="button" onClick={startClarify}>
-              Start clarifier
+              Start research
             </button>
             <button className="button" type="button" onClick={reset}>
               Reset
@@ -254,6 +462,7 @@ export default function ClarifyClient() {
             <span className="pill">API</span>
             <span className="pill">{API_BASE}</span>
             <span className="pill">status: {status}</span>
+            <span className="pill">pipeline: {pipelineStatus}</span>
           </div>
         </div>
         {error ? <div className="panel-subtitle">Error: {error}</div> : null}
@@ -263,8 +472,8 @@ export default function ClarifyClient() {
         <div className="panel">
           <div className="panel-header">
             <div>
-              <div className="panel-title">Clarify Chat</div>
-              <div className="panel-subtitle">Conversation flow (CLI-style)</div>
+              <div className="panel-title">Conversation</div>
+              <div className="panel-subtitle">Answer a few questions to refine the scope.</div>
             </div>
           </div>
           <div className="chat-list">
@@ -302,13 +511,21 @@ export default function ClarifyClient() {
               </div>
             </div>
           ) : null}
+          {pipelineStatus === "done" ? (
+            <div className="control-group">
+              <span className="panel-subtitle">Pipeline complete. View the full run:</span>
+              <Link className="button" href="/demo">
+                Open demo view
+              </Link>
+            </div>
+          ) : null}
         </div>
 
         <div className="panel">
           <div className="panel-header">
             <div>
-              <div className="panel-title">Clarifier Payloads</div>
-              <div className="panel-subtitle">Input / output payloads (observability)</div>
+              <div className="panel-title">Conversation Payloads</div>
+              <div className="panel-subtitle">Inputs / outputs (observability)</div>
             </div>
           </div>
           <div className="payload-stack">
@@ -318,12 +535,12 @@ export default function ClarifyClient() {
               <pre className="json-block">{prettyJson(currentQuery || null)}</pre>
             </section>
             <section className="payload-section">
-              <div className="payload-title">Latest output</div>
-              <div className="payload-sub">clarify</div>
+              <div className="payload-title">Latest response</div>
+              <div className="payload-sub">assistant</div>
               <pre className="json-block">{prettyJson(clarifyOutput ?? null)}</pre>
             </section>
             <section className="payload-section">
-              <div className="payload-title">Clarifier context</div>
+              <div className="payload-title">Conversation context</div>
               <div className="payload-sub">rounds</div>
               <pre className="json-block">{prettyJson(clarifierContext ?? null)}</pre>
             </section>

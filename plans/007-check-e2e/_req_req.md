@@ -45,3 +45,30 @@
 서버 연결은 잘 됐음. 이제 demo 관련된 UI들은 지저분하니까 `/demo` 로 다 빼자.
 
 그리고 메인 URL에서, 유저가 질의하면 CLI에서처럼 대화 나누며 clarify 하는 게 되어야 하는데 이거 지금 안되는 거 맞지?
+
+---
+
+버튼이 "Start Clarifier" 가 아님. Clarifier는 구현 디테일이잖아. 
+
+이것도 마찬가지.
+```
+Conversation flow (CLI-style)
+```
+
+원래 CLI로 만들어졌다는 걸 유저가 알 필요가 없음. 그리고 당연히 핑퐁 끝나면 다음 게 알아서 실행되어야 함.
+
+내가 어떤 철학에 의해 얘기하는지 알겠지?
+
+---
+
+CORS 에러도 같이 해결.
+
+---
+
+이 문제도 있음.
+
+  File "/Users/ted/codes/corca/007-check-e2e/.venv/lib/python3.13/site-packages/agents/run.py", line 867, in run_sync
+    raise RuntimeError(
+        "AgentRunner.run_sync() cannot be called when an event loop is already running."
+    )
+RuntimeError: AgentRunner.run_sync() cannot be called when an event loop is already running.
