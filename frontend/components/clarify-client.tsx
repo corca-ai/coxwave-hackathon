@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { prettyJson } from "../lib/json";
 import { parseRunBundle } from "../lib/run-bundle";
 import { parseStreamEvents } from "../lib/stream";
 import type { RunStep, StreamEvent } from "../lib/types";
+import StreamPanel from "./stream-panel";
 
 interface ClarifyOutput {
   is_clear_enough: boolean;
@@ -61,6 +62,10 @@ export default function ClarifyClient() {
     "idle" | "running" | "done" | "error"
   >("idle");
   const [error, setError] = useState<string | null>(null);
+  const [streamEvents, setStreamEvents] = useState<StreamEvent[]>([]);
+  const [selectedEvent, setSelectedEvent] = useState<StreamEvent | null>(null);
+  const [currentAgent, setCurrentAgent] = useState<string | null>(null);
+  const streamAbortRef = useRef<AbortController | null>(null);
 
   const clarifierContext = useMemo(() => {
     if (!originalQuery || !clarifyOutput) {
@@ -226,6 +231,9 @@ export default function ClarifyClient() {
   }
 
   function reset() {
+    if (streamAbortRef.current) {
+      streamAbortRef.current.abort();
+    }
     setQueryInput("");
     setOriginalQuery("");
     setCurrentQuery("");
@@ -239,11 +247,24 @@ export default function ClarifyClient() {
     setStatus("idle");
     setPipelineStatus("idle");
     setError(null);
+    setStreamEvents([]);
+    setSelectedEvent(null);
+    setCurrentAgent(null);
   }
 
   async function runPipelineStream(context: unknown) {
+    if (streamAbortRef.current) {
+      streamAbortRef.current.abort();
+    }
+
+    const controller = new AbortController();
+    streamAbortRef.current = controller;
+
     setPipelineStatus("running");
     setError(null);
+    setStreamEvents([]);
+    setSelectedEvent(null);
+    setCurrentAgent(null);
 
     const streamEventsBuffer: StreamEvent[] = [];
     let firstTimestamp: string | null = null;
@@ -299,7 +320,8 @@ export default function ClarifyClient() {
           query: originalQuery,
           skip_clarify: true,
           clarified_context: JSON.stringify(context)
-        })
+        }),
+        signal: controller.signal
       });
 
       if (!response.ok) {
@@ -346,9 +368,19 @@ export default function ClarifyClient() {
             }
 
             streamEventsBuffer.push(normalized);
+            setStreamEvents((prev) => [...prev, normalized]);
+            setSelectedEvent((current) => current ?? normalized);
 
             const agent = normalized.agent ?? "";
             const stepName = agentToStep[agent];
+
+            // Update current agent display
+            if (normalized.type === "agent_start" && agent) {
+              setCurrentAgent(agent);
+            }
+            if (normalized.type === "agent_complete" && agent) {
+              setCurrentAgent(null);
+            }
 
             if (normalized.type === "agent_start" && stepName) {
               const payload = normalized.payload as { input?: unknown } | null;
@@ -423,9 +455,14 @@ export default function ClarifyClient() {
       localStorage.setItem("rn_last_stream_events", JSON.stringify(streamEventsBuffer));
 
       setPipelineStatus("done");
+      setCurrentAgent(null);
     } catch (err) {
-      setPipelineStatus("error");
-      setError(err instanceof Error ? err.message : "Pipeline run failed.");
+      if ((err as Error).name !== "AbortError") {
+        setPipelineStatus("error");
+        setError(err instanceof Error ? err.message : "Pipeline run failed.");
+      }
+    } finally {
+      setCurrentAgent(null);
     }
   }
 
@@ -463,6 +500,10 @@ export default function ClarifyClient() {
             <span className="pill">{API_BASE}</span>
             <span className="pill">status: {status}</span>
             <span className="pill">pipeline: {pipelineStatus}</span>
+            {currentAgent ? <span className="pill">agent: {currentAgent}</span> : null}
+            {streamEvents.length > 0 ? (
+              <span className="pill">events: {streamEvents.length}</span>
+            ) : null}
           </div>
         </div>
         {error ? <div className="panel-subtitle">Error: {error}</div> : null}
@@ -547,6 +588,53 @@ export default function ClarifyClient() {
           </div>
         </div>
       </section>
+
+      {pipelineStatus !== "idle" && (
+        <section className="clarify-grid" style={{ marginTop: "1rem" }}>
+          <div className="panel">
+            <div className="panel-header">
+              <div>
+                <div className="panel-title">Streaming Timeline</div>
+                <div className="panel-subtitle">Real-time agent events</div>
+              </div>
+              {currentAgent ? (
+                <span className="pill" style={{ backgroundColor: "#22c55e", color: "white" }}>
+                  Running: {currentAgent}
+                </span>
+              ) : null}
+            </div>
+            <StreamPanel
+              events={streamEvents}
+              selectedEvent={selectedEvent}
+              onSelectEvent={setSelectedEvent}
+              maxEvents={streamEvents.length}
+              cursor={streamEvents.length}
+            />
+          </div>
+
+          <div className="panel">
+            <div className="panel-header">
+              <div>
+                <div className="panel-title">Selected Event</div>
+                <div className="panel-subtitle">Event payload details</div>
+              </div>
+            </div>
+            <div className="payload-stack">
+              {selectedEvent ? (
+                <section className="payload-section">
+                  <div className="payload-title">{selectedEvent.type}</div>
+                  <div className="payload-sub">
+                    agent: {selectedEvent.agent ?? "n/a"} | stage: {selectedEvent.stage ?? "n/a"}
+                  </div>
+                  <pre className="json-block">{prettyJson(selectedEvent.payload)}</pre>
+                </section>
+              ) : (
+                <div className="panel-subtitle">Select an event to view details.</div>
+              )}
+            </div>
+          </div>
+        </section>
+      )}
     </main>
   );
 }
