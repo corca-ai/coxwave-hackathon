@@ -224,8 +224,42 @@ class TestSearch:
 
         assert len(candidates) == 2
         assert all(isinstance(c, Candidate) for c in candidates)
-        assert candidates[0].arxiv_id == "2301.00001"
-        assert candidates[1].arxiv_id == "2301.00002"
+
+    @patch("agent.search.clients.arxiv_client.arxiv.Client")
+    @patch("agent.search.clients.arxiv_client.arxiv.Search")
+    def test_search_respects_time_range(self, mock_search_class, mock_client_class):
+        """Search should filter out papers outside the time range."""
+        current_year = datetime.now().year
+        recent = create_mock_result(
+            entry_id="http://arxiv.org/abs/2401.00001v1",
+            title="Recent Paper",
+            published=datetime(current_year, 1, 1),
+            authors=["Author One"],
+            summary="Recent abstract.",
+            pdf_url="http://arxiv.org/pdf/2401.00001v1",
+            categories=["cs.AI"],
+        )
+        old = create_mock_result(
+            entry_id="http://arxiv.org/abs/2001.00001v1",
+            title="Old Paper",
+            published=datetime(current_year - 2, 1, 1),
+            authors=["Author Two"],
+            summary="Old abstract.",
+            pdf_url="http://arxiv.org/pdf/2001.00001v1",
+            categories=["cs.AI"],
+        )
+
+        mock_client_instance = MagicMock()
+        mock_client_instance.results.return_value = [recent, old]
+        mock_client_class.return_value = mock_client_instance
+
+        client = ArxivClient()
+        params = ArxivSearchParams(queries=["test"], max_results=10, time_range_years=1)
+        candidates = client.search(params)
+
+        assert len(candidates) == 1
+        assert candidates[0].title == "Recent Paper"
+        assert candidates[0].arxiv_id == "2401.00001"
 
     @patch("agent.search.clients.arxiv_client.arxiv.Client")
     @patch("agent.search.clients.arxiv_client.arxiv.Search")

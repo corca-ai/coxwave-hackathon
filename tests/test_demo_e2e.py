@@ -29,7 +29,9 @@ class DemoE2ETest(unittest.TestCase):
         for section in [
             "Input",
             "Clarify",
+            "Orchestrator",
             "Plan",
+            "Research Loop",
             "Search",
             "Extract",
             "Verify",

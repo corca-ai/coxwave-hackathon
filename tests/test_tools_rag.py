@@ -44,6 +44,10 @@ class TestRagIngestCandidates:
             candidates=candidates,
             ingest_policy=policy,
         )
+        print("RAG ingest input:")
+        print(json.dumps({"namespace": "test-ns", "candidates": [c.model_dump() for c in candidates]}, indent=2, ensure_ascii=True))
+        print("RAG ingest output:")
+        print(json.dumps(result.model_dump(), indent=2, ensure_ascii=True))
 
         assert isinstance(result, IngestSummary)
         assert result.new_docs_added == 2
@@ -81,6 +85,10 @@ class TestRagIngestCandidates:
             candidates=candidates,
             ingest_policy=policy,
         )
+        print("RAG ingest input:")
+        print(json.dumps({"namespace": "test-ns", "candidates": [c.model_dump() for c in candidates]}, indent=2, ensure_ascii=True))
+        print("RAG ingest output:")
+        print(json.dumps(result.model_dump(), indent=2, ensure_ascii=True))
 
         assert result.new_docs_added == 1
         assert result.duplicates_skipped == 1
@@ -92,6 +100,27 @@ class TestRagIngestCandidates:
         assert len(saved_papers) == 2
         assert saved_papers[0]["title"] == "Existing Paper"
         assert saved_papers[1]["arxiv_id"] == "2301.00002"
+
+    def test_rag_ingest_dedupes_input(self, tmp_path):
+        """Should dedupe duplicate arxiv_ids within the input list."""
+        set_artifacts_dir(tmp_path)
+
+        candidates = [
+            make_candidate("2301.00001", "Paper 1"),
+            make_candidate("2301.00001", "Paper 1 duplicate"),
+            make_candidate("2301.00002", "Paper 2"),
+        ]
+        policy = IngestPolicy()
+
+        result = _rag_ingest_candidates_impl(
+            namespace="test-ns",
+            candidates=candidates,
+            ingest_policy=policy,
+        )
+
+        assert result.new_docs_added == 2
+        assert result.duplicates_skipped == 1
+        assert result.index_size == 2
 
 
 class TestRagPreview:
@@ -107,6 +136,10 @@ class TestRagPreview:
             query="test query",
             top_k=5,
         )
+        print("RAG preview input:")
+        print(json.dumps({"namespace": "test-ns", "query": "test query", "top_k": 5}, indent=2, ensure_ascii=True))
+        print("RAG preview output:")
+        print(json.dumps(result, indent=2, ensure_ascii=True))
 
         assert isinstance(result, list)
         assert len(result) == 0
@@ -120,6 +153,10 @@ class TestRagPreview:
             query="machine learning",
             top_k=10,
         )
+        print("RAG preview input:")
+        print(json.dumps({"namespace": "test-ns", "query": "machine learning", "top_k": 10}, indent=2, ensure_ascii=True))
+        print("RAG preview output:")
+        print(json.dumps(result, indent=2, ensure_ascii=True))
 
         assert isinstance(result, list)
         assert len(result) == 0

@@ -93,6 +93,19 @@ class VisualOutput:
     rationale: str = ""
 
 
+@dataclass
+class OrchestratorConfig:
+    max_loops: int = 3
+    require_plan_approval: bool = True
+
+
+@dataclass
+class OrchestratorOutput:
+    report: ReportOutput
+    loops_used: int
+    plan_approved: bool
+
+
 class Clarifier(Protocol):
     def run(self, query: str) -> ClarifyOutput:
         raise NotImplementedError
@@ -128,6 +141,11 @@ class Visualizer(Protocol):
         raise NotImplementedError
 
 
+class Orchestrator(Protocol):
+    def run(self, clarify_context: str, config: OrchestratorConfig) -> OrchestratorOutput:
+        raise NotImplementedError
+
+
 @dataclass
 class DemoAgents:
     clarifier: Clarifier
@@ -137,6 +155,7 @@ class DemoAgents:
     verifier: Verifier
     writer: Writer
     visualizer: Visualizer
+    orchestrator: Orchestrator
 
 
 def print_section(title: str) -> None:
@@ -298,15 +317,108 @@ class MockVisualizer:
         )
 
 
+class MockOrchestrator:
+    def __init__(
+        self,
+        planner: Planner,
+        searcher: Searcher,
+        extractor: Extractor,
+        verifier: Verifier,
+        writer: Writer,
+        verbose: bool = True,
+    ) -> None:
+        self.planner = planner
+        self.searcher = searcher
+        self.extractor = extractor
+        self.verifier = verifier
+        self.writer = writer
+        self.verbose = verbose
+
+    def _log(self, section: str, label: str, data: object) -> None:
+        if self.verbose:
+            print_section(section)
+            print_json(label, data)
+
+    def run(self, clarify_context: str, config: OrchestratorConfig) -> OrchestratorOutput:
+        # Plan
+        plan_out = self.planner.run(clarify_context)
+        self._log("Plan", "Plan output", plan_out)
+
+        loops_used = 0
+        search_context = json.dumps({"plan": asdict(plan_out), "clarifier": json.loads(clarify_context)})
+        verify_out: Optional[VerifyOutput] = None
+        search_out: Optional[SearchOutput] = None
+
+        # Search-Extract-Verify loop
+        for loop_idx in range(config.max_loops):
+            loops_used = loop_idx + 1
+            if self.verbose:
+                print_section(f"Research Loop {loops_used}/{config.max_loops}")
+
+            search_out = self.searcher.run(search_context)
+            self._log("Search", "Search results", search_out)
+
+            extract_out = self.extractor.run(json.dumps(asdict(search_out)))
+            self._log("Extract", "Extracted claims", extract_out)
+
+            verify_out = self.verifier.run(json.dumps(asdict(extract_out)))
+            self._log("Verify", "Verification", verify_out)
+
+            if verify_out.is_enough:
+                if self.verbose:
+                    print("Quality gate PASSED.")
+                break
+
+            if self.verbose:
+                print(f"Quality gate FAILED. Next queries: {verify_out.next_search_queries}")
+
+            # Prepare next search context with next_search_queries
+            if verify_out.next_search_queries:
+                search_context = json.dumps({
+                    "plan": asdict(plan_out),
+                    "previous_search": asdict(search_out),
+                    "next_queries": verify_out.next_search_queries,
+                })
+
+        # Write
+        supported = [v for v in (verify_out.verdicts if verify_out else []) if v.verdict.lower() == "supported"]
+        writer_context = json.dumps({
+            "clarifier": json.loads(clarify_context),
+            "plan": asdict(plan_out),
+            "supported_claims": [asdict(v) for v in supported],
+        })
+        report_out = self.writer.run(writer_context)
+        self._log("Write", "Report", report_out)
+
+        return OrchestratorOutput(
+            report=report_out,
+            loops_used=loops_used,
+            plan_approved=True,
+        )
+
+
 def build_mock_agents() -> DemoAgents:
+    planner = MockPlanner()
+    searcher = MockSearcher()
+    extractor = MockExtractor()
+    verifier = MockVerifier()
+    writer = MockWriter()
+
     return DemoAgents(
         clarifier=MockClarifier(),
-        planner=MockPlanner(),
-        searcher=MockSearcher(),
-        extractor=MockExtractor(),
-        verifier=MockVerifier(),
-        writer=MockWriter(),
+        planner=planner,
+        searcher=searcher,
+        extractor=extractor,
+        verifier=verifier,
+        writer=writer,
         visualizer=MockVisualizer(),
+        orchestrator=MockOrchestrator(
+            planner=planner,
+            searcher=searcher,
+            extractor=extractor,
+            verifier=verifier,
+            writer=writer,
+        ),
     )
 
 
@@ -393,11 +505,13 @@ def run_demo(
     query: str,
     visualize: bool,
     max_clarify_rounds: int = 2,
+    max_orchestrator_loops: int = 3,
     show_inputs: bool = True,
 ) -> int:
     print_section("Input")
     print(f"Query: {query}")
 
+    # Phase 1: Clarifier (separate from orchestrator)
     try:
         clarify_out, clarifier_rounds = _run_clarifier_loop(
             agents, query, max_rounds=max_clarify_rounds
@@ -411,80 +525,39 @@ def run_demo(
         "final": asdict(clarify_out),
     }
     print_json("Clarifier context", clarifier_payload)
-
     clarified_context = json.dumps(clarifier_payload, ensure_ascii=True)
 
-    print_section("Plan")
+    # Phase 2: Orchestrator (Plan → Search → Extract → Verify → Write loop)
+    print_section("Orchestrator")
+    config = OrchestratorConfig(
+        max_loops=max_orchestrator_loops,
+        require_plan_approval=True,
+    )
     if show_inputs:
-        print_json("Plan input", clarifier_payload)
-    plan_out = agents.planner.run(clarified_context)
-    print_json("Plan", plan_out)
+        print_json("Orchestrator config", asdict(config))
 
-    if not ask_yes_no("Approve this plan? [y/N]: "):
-        feedback = ask("What should change in the plan? ")
-        plan_input = f"{clarified_context}\nUser feedback: {feedback}"
-        plan_out = agents.planner.run(plan_input)
-        print_json("Revised plan", plan_out)
-        if not ask_yes_no("Approve revised plan? [y/N]: "):
-            print("Plan not approved. Exiting.")
-            return 0
+    try:
+        orchestrator_out = agents.orchestrator.run(clarified_context, config)
+    except Exception as exc:
+        print(f"Orchestrator failed: {exc}")
+        return 1
+    print_json("Orchestrator summary", {
+        "loops_used": orchestrator_out.loops_used,
+        "plan_approved": orchestrator_out.plan_approved,
+    })
 
-    print_section("Search")
-    search_payload = {"plan": asdict(plan_out), "clarifier": clarifier_payload}
-    if show_inputs:
-        print_json("Search input", search_payload)
-    search_input = json.dumps(search_payload, ensure_ascii=True)
-    search_out = agents.searcher.run(search_input)
-    print_json("Search results", search_out)
-
-    print_section("Extract")
-    extract_payload = asdict(search_out)
-    if show_inputs:
-        print_json("Extract input", extract_payload)
-    extract_input = json.dumps(extract_payload, ensure_ascii=True)
-    extract_out = agents.extractor.run(extract_input)
-    print_json("Extracted claims", extract_out)
-
-    print_section("Verify")
-    verify_payload = asdict(extract_out)
-    if show_inputs:
-        print_json("Verify input", verify_payload)
-    verify_input = json.dumps(verify_payload, ensure_ascii=True)
-    verify_out = agents.verifier.run(verify_input)
-    print_json("Verification", verify_out)
-
-    if not verify_out.is_enough:
-        print("Evidence is not enough for a final answer.")
-        if verify_out.next_search_queries:
-            print("Suggested next searches:")
-            for q in verify_out.next_search_queries:
-                print(f"- {q}")
-        if not ask_yes_no("Continue to write a draft anyway? [y/N]: "):
-            print("Stopping after verification.")
-            return 0
-
-    supported = [v for v in verify_out.verdicts if v.verdict.lower() == "supported"]
-    writer_payload = {
-        "clarifier": clarifier_payload,
-        "plan": asdict(plan_out),
-        "sources": asdict(search_out),
-        "supported_claims": [asdict(v) for v in supported],
-    }
-    if show_inputs:
-        print_json("Write input", writer_payload)
-    writer_input = json.dumps(writer_payload, ensure_ascii=True)
-
-    print_section("Write")
-    report_out = agents.writer.run(writer_input)
-    print_json("Report", report_out)
-
+    # Phase 3: Visualizer (separate from orchestrator)
     if visualize:
         print_section("Visualize")
-        visual_payload = asdict(report_out)
+        visual_payload = asdict(orchestrator_out.report)
         if show_inputs:
             print_json("Visualize input", visual_payload)
         visual_input = json.dumps(visual_payload, ensure_ascii=True)
-        visual_out = agents.visualizer.run(visual_input)
+        try:
+            visual_out = agents.visualizer.run(visual_input)
+        except Exception as exc:
+            print(f"Visualizer failed: {exc}")
+            return 1
         print_json("Visualization spec", visual_out)
 
     print_section("Done")
