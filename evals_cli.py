@@ -23,6 +23,12 @@ def parse_args() -> argparse.Namespace:
         help="Agent name to evaluate",
     )
     parser.add_argument(
+        "--engine",
+        choices=["agents", "dspy"],
+        default="agents",
+        help="Execution engine for the agent (default: agents)",
+    )
+    parser.add_argument(
         "--dataset",
         default=None,
         help="Path to JSONL dataset (defaults to agent's dataset)",
@@ -64,16 +70,30 @@ def resolve_max_samples(cli_value: Optional[int]) -> int:
     return max_samples
 
 
-def load_agents(use_mock: bool):
+def load_agents(engine: str, use_mock: bool, agent_name: str):
+    if engine == "agents":
+        if use_mock:
+            return build_mock_agents()
+        try:
+            from agents_impl import build_agents
+        except ImportError as exc:
+            raise RuntimeError(
+                "Failed to import agents_impl. Install dependencies or run with --mock."
+            ) from exc
+        return build_agents()
+
     if use_mock:
-        return build_mock_agents()
+        raise RuntimeError("--mock is only supported with --engine agents.")
+
+    if agent_name != "clarifier":
+        raise RuntimeError("DSPy engine is only wired for clarifier right now.")
+
     try:
-        from agents_impl import build_agents
+        from dspy_agents import build_dspy_agents
     except ImportError as exc:
-        raise RuntimeError(
-            "Failed to import agents_impl. Install dependencies or run with --mock."
-        ) from exc
-    return build_agents()
+        raise RuntimeError("DSPy agents are unavailable.") from exc
+
+    return build_dspy_agents()
 
 
 def main() -> int:
@@ -84,6 +104,9 @@ def main() -> int:
             "OPENAI_TEMPERATURE",
             "EVAL_MAX_SAMPLES",
             "EVAL_ARTIFACT_DIR",
+            "DSPY_MODEL",
+            "DSPY_TEMPERATURE",
+            "DSPY_MAX_TOKENS",
         ]
     )
     args = parse_args()
@@ -95,7 +118,7 @@ def main() -> int:
         return 1
 
     try:
-        agents = load_agents(args.mock)
+        agents = load_agents(args.engine, args.mock, args.agent)
     except RuntimeError as exc:
         print(str(exc))
         return 1

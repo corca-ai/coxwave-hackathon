@@ -216,6 +216,9 @@ python3 visualizer_cli.py --input tests/fixtures/visualizer_report.json
 
 # 데모 시나리오 전체 (mock)
 python3 main.py --mock --query "Investigate RAG and hallucination in legal QA"
+
+# DSPy Clarifier 단독 확인 (DSPy 설치 필요)
+python3 dspy_clarifier_cli.py --query "AI alignment"
 ```
 
 테스트 실행 로그는 `tests/_artifacts/`에 저장된다.
@@ -231,6 +234,9 @@ python3 evals_cli.py --agent clarifier --dataset evals/datasets/clarifier.jsonl
 
 # Mock 에이전트로 평가 (API 키 불필요)
 python3 evals_cli.py --agent clarifier --dataset evals/datasets/clarifier.jsonl --mock
+
+# DSPy 엔진으로 평가 (DSPy 설치 필요)
+python3 evals_cli.py --agent clarifier --engine dspy --dataset evals/datasets/clarifier.jsonl
 ```
 
 - `EVAL_MAX_SAMPLES`로 평가 샘플 상한을 설정할 수 있으며, `--max-samples`로 오버라이드한다.
