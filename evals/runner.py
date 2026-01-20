@@ -56,7 +56,7 @@ def run_eval(
         results.append(
             {
                 "id": sample_id,
-                "input": agent_input,
+                "input": _to_payload(agent_input),
                 "output": output_payload,
                 "score": score,
             }
