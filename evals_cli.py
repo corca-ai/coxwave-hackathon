@@ -85,15 +85,12 @@ def load_agents(engine: str, use_mock: bool, agent_name: str):
     if use_mock:
         raise RuntimeError("--mock is only supported with --engine agents.")
 
-    if agent_name != "clarifier":
-        raise RuntimeError("DSPy engine is only wired for clarifier right now.")
-
     try:
-        from dspy_agents import build_dspy_agents
+        from dspy_integration.agents import build_dspy_agents
     except ImportError as exc:
         raise RuntimeError("DSPy agents are unavailable.") from exc
 
-    return build_dspy_agents()
+    return build_dspy_agents(agent_name)
 
 
 def main() -> int:

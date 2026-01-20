@@ -1,11 +1,13 @@
 from __future__ import annotations
 
-from evals.clarifier_eval import build_spec
+from evals.clarifier_eval import build_spec as build_clarifier_spec
+from evals.visualizer_eval import build_spec as build_visualizer_spec
 from evals.specs import EvalSpec
 
 
 EVAL_SPECS: dict[str, EvalSpec] = {
-    "clarifier": build_spec(),
+    "clarifier": build_clarifier_spec(),
+    "visualizer": build_visualizer_spec(),
 }
 
 

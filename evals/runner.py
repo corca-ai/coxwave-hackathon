@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from dataclasses import asdict, is_dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 from evals.specs import EvalSpec
 from main import DemoAgents
@@ -28,8 +28,10 @@ def run_eval(
     agents: DemoAgents,
     dataset_path: str,
     max_samples: int,
+    samples: Optional[list[dict[str, Any]]] = None,
 ) -> tuple[dict[str, Any], list[dict[str, Any]]]:
-    samples = spec.load_samples(Path(dataset_path))
+    if samples is None:
+        samples = spec.load_samples(Path(dataset_path))
     results: list[dict[str, Any]] = []
 
     print_section(f"Eval: {spec.name}")
