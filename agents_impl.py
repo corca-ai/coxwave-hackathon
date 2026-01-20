@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import json
 import os
-from dataclasses import replace
+import sys
+from dataclasses import dataclass, replace
+from pathlib import Path
 from typing import Any, Optional
 
 from agents import Agent, AgentOutputSchema, ModelSettings, Runner
@@ -10,16 +12,80 @@ from agents import Agent, AgentOutputSchema, ModelSettings, Runner
 from main import (
     ClarifyOutput,
     DemoAgents,
-    MockExtractor,
+    ExtractOutput,
+    Claim as MainClaim,
+    MockOrchestrator,
     MockPlanner,
-    MockSearcher,
-    MockVerifier,
-    MockWriter,
+    SearchOutput,
+    Source,
+    Verification as MainVerification,
+    VerifyOutput,
     ReportOutput,
     VisualComponent,
     VisualOutput,
 )
 from env_loader import load_env
+
+# Add src/ to path for agent imports
+sys.path.insert(0, str(Path(__file__).parent / "src"))
+
+from agent.search.agent import search_agent
+from agent.search.schemas import (
+    Candidate,
+    Constraints,
+    IngestSummary,
+    QueryPlan,
+    SearchRequest,
+    SearchResult,
+)
+from agent.search.tools.rag import set_artifacts_dir as set_search_artifacts_dir
+from agent.extract.agent import extract_agent
+from agent.extract.schemas import (
+    Claim as ExtractClaim,
+    Evidence as ExtractEvidence,
+    ExtractorRequest,
+    ExtractorResult,
+    PaperCard as ExtractPaperCard,
+)
+from agent.verify.agent import verifier_agent
+from agent.verify.schemas import (
+    Claim as VerifyClaim,
+    Evidence as VerifyEvidence,
+    ExtractorResult as VerifyExtractorResult,
+    VerifierConstraints,
+    PaperCard as VerifyPaperCard,
+    VerifierRequest,
+    VerifierResult,
+)
+from agent.verify.tools.rag import set_artifacts_dir as set_verify_artifacts_dir
+
+
+@dataclass
+class PipelineState:
+    namespace: str = "default"
+    goal: str | None = None
+    search_result: SearchResult | None = None
+    extractor_result: ExtractorResult | None = None
+
+
+_PIPELINE_STATE = PipelineState()
+
+
+def _model_supports_sampling_params(model: str) -> bool:
+    normalized = model.strip().lower()
+    if normalized.startswith("gpt-5.2") or normalized.startswith("gpt-5.1"):
+        return True
+    if normalized.startswith("gpt-5"):
+        return False
+    return True
+
+
+def _build_model_settings(model: str, temperature: Optional[float]) -> ModelSettings:
+    if temperature is None:
+        return ModelSettings()
+    if not _model_supports_sampling_params(model):
+        return ModelSettings()
+    return ModelSettings(temperature=temperature)
 
 
 class OpenAIClarifier:
@@ -32,7 +98,7 @@ class OpenAIClarifier:
         self._agent = Agent(
             name="Clarifier",
             model=resolved_model,
-            model_settings=ModelSettings(temperature=temp_value),
+            model_settings=_build_model_settings(resolved_model, temp_value),
             output_type=ClarifyOutput,
             instructions=(
                 "You clarify a research query for a serious user. "
@@ -88,6 +154,353 @@ def _normalize_clarify_output(output: ClarifyOutput, query: str) -> ClarifyOutpu
 def _is_ambiguous(query: str) -> bool:
     return len(query.split()) <= 4
 
+def _get_default_namespace() -> str:
+    load_env(keys=["AGENTS_NAMESPACE"])
+    return os.getenv("AGENTS_NAMESPACE", "default")
+
+
+def _get_artifacts_dir() -> str:
+    load_env(keys=["ARTIFACTS_DIR"])
+    return os.getenv("ARTIFACTS_DIR", "artifacts")
+
+
+def _extract_search_options(context: str) -> tuple[str, int]:
+    namespace = _get_default_namespace()
+    target_new_docs = 12
+    try:
+        payload = json.loads(context)
+    except json.JSONDecodeError:
+        return namespace, target_new_docs
+    if not isinstance(payload, dict):
+        return namespace, target_new_docs
+    if isinstance(payload.get("namespace"), str) and payload["namespace"].strip():
+        namespace = payload["namespace"].strip()
+    constraints = payload.get("constraints")
+    if isinstance(constraints, dict):
+        target = constraints.get("target_new_docs")
+        if isinstance(target, int) and target > 0:
+            target_new_docs = target
+    return namespace, target_new_docs
+
+
+def _extract_goal_from_context(context: str) -> str:
+    try:
+        payload = json.loads(context)
+    except json.JSONDecodeError:
+        return context.strip() or "Unknown goal"
+    if not isinstance(payload, dict):
+        return "Unknown goal"
+    clarifier = payload.get("clarifier") or {}
+    if isinstance(clarifier, dict):
+        final = clarifier.get("final") or {}
+        if isinstance(final, dict):
+            interpreted = final.get("interpreted_query")
+            if isinstance(interpreted, str) and interpreted.strip():
+                return interpreted.strip()
+        original = clarifier.get("original_query")
+        if isinstance(original, str) and original.strip():
+            return original.strip()
+    return "Unknown goal"
+
+
+class OpenAISearcher:
+    def __init__(self, model: Optional[str] = None) -> None:
+        load_env(keys=["OPENAI_API_KEY", "OPENAI_MODEL"])
+        self._model = model or os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+
+    def run(self, context: str) -> SearchOutput:
+        load_env(keys=["OPENAI_API_KEY"])
+        if not os.getenv("OPENAI_API_KEY"):
+            raise RuntimeError("OPENAI_API_KEY is not set.")
+
+        goal = _extract_goal_from_context(context)
+        namespace, target_new_docs = _extract_search_options(context)
+        artifacts_dir = _get_artifacts_dir()
+        set_search_artifacts_dir(Path(artifacts_dir))
+
+        _PIPELINE_STATE.namespace = namespace
+        _PIPELINE_STATE.goal = goal
+        _PIPELINE_STATE.search_result = None
+        _PIPELINE_STATE.extractor_result = None
+
+        request = SearchRequest(
+            goal=goal,
+            namespace=namespace,
+            constraints=Constraints(target_new_docs=target_new_docs),
+        )
+
+        result = Runner.run_sync(search_agent, request.model_dump_json())
+        output = result.final_output
+        if not isinstance(output, SearchResult):
+            raise TypeError("Search output is not SearchResult")
+
+        _PIPELINE_STATE.search_result = output
+
+        sources = [
+            Source(
+                source_id=paper.arxiv_id,
+                title=paper.title,
+                url=paper.url,
+                snippet=paper.abstract,
+                why_relevant=paper.why_selected or "Selected by search agent.",
+            )
+            for paper in output.selected_papers
+        ]
+
+        return SearchOutput(refined_query=goal, sources=sources)
+
+
+class OpenAIExtractor:
+    def __init__(self) -> None:
+        load_env(keys=["OPENAI_API_KEY", "OPENAI_MODEL"])
+
+    def run(self, context: str) -> ExtractOutput:
+        load_env(keys=["OPENAI_API_KEY"])
+        if not os.getenv("OPENAI_API_KEY"):
+            raise RuntimeError("OPENAI_API_KEY is not set.")
+
+        namespace = _PIPELINE_STATE.namespace or _get_default_namespace()
+        goal = _PIPELINE_STATE.goal or "Unknown goal"
+        search_result = _PIPELINE_STATE.search_result
+
+        if search_result is None:
+            search_result = _fallback_search_result(context)
+
+        request = ExtractorRequest(
+            goal=goal,
+            namespace=namespace,
+            search_result=search_result,
+        )
+
+        result = Runner.run_sync(extract_agent, request.model_dump_json())
+        output = result.final_output
+        if not isinstance(output, ExtractorResult):
+            raise TypeError("Extractor output is not ExtractorResult")
+
+        _PIPELINE_STATE.extractor_result = _normalize_extractor_result(output, search_result)
+
+        claims: list[MainClaim] = []
+        for claim in _PIPELINE_STATE.extractor_result.claims:
+            if claim.evidence is None:
+                continue
+            claims.append(
+                MainClaim(
+                    claim=claim.text,
+                    evidence=claim.evidence.quote,
+                    source_id=claim.doc_id,
+                    confidence=claim.confidence,
+                )
+            )
+
+        gaps = [] if claims else ["No claims extracted."]
+
+        return ExtractOutput(claims=claims, gaps=gaps)
+
+
+class OpenAIVerifier:
+    def __init__(self) -> None:
+        load_env(keys=["OPENAI_API_KEY", "OPENAI_MODEL"])
+
+    def run(self, context: str) -> VerifyOutput:
+        load_env(keys=["OPENAI_API_KEY"])
+        if not os.getenv("OPENAI_API_KEY"):
+            raise RuntimeError("OPENAI_API_KEY is not set.")
+
+        namespace = _PIPELINE_STATE.namespace or _get_default_namespace()
+        goal = _PIPELINE_STATE.goal or "Unknown goal"
+        artifacts_dir = _get_artifacts_dir()
+        set_verify_artifacts_dir(Path(artifacts_dir))
+
+        extractor_result = _PIPELINE_STATE.extractor_result
+        if extractor_result is None:
+            extractor_result = _fallback_extractor_result(context)
+
+        request = VerifierRequest(
+            goal=goal,
+            namespace=namespace,
+            extractor_result=_to_verify_extractor_result(extractor_result),
+            constraints=VerifierConstraints(),
+        )
+
+        result = Runner.run_sync(verifier_agent, request.model_dump_json())
+        output = result.final_output
+        if not isinstance(output, VerifierResult):
+            raise TypeError("Verifier output is not VerifierResult")
+
+        claim_lookup = {claim.claim_id: claim for claim in request.extractor_result.claims}
+        verdicts: list[MainVerification] = []
+        for judgement in output.claim_judgements:
+            claim = claim_lookup.get(judgement.claim_id)
+            confidence = _confidence_from_status(judgement.status)
+            verdicts.append(
+                MainVerification(
+                    claim=claim.text if claim else judgement.claim_id,
+                    verdict=judgement.status,
+                    rationale=judgement.reason,
+                    confidence=confidence,
+                    source_id=claim.doc_id if claim else None,
+                    required_evidence=[],
+                )
+            )
+
+        queries: list[str] = []
+        for action in output.next_actions:
+            for query in action.suggested_queries:
+                if query not in queries:
+                    queries.append(query)
+
+        return VerifyOutput(
+            verdicts=verdicts,
+            is_enough=output.quality_gate.passed,
+            next_search_queries=queries,
+        )
+
+
+def _fallback_search_result(context: str) -> SearchResult:
+    try:
+        payload = json.loads(context)
+    except json.JSONDecodeError:
+        payload = {}
+    sources = []
+    if isinstance(payload, dict):
+        sources = payload.get("sources", [])
+
+    candidates: list[Candidate] = []
+    for idx, source in enumerate(sources):
+        if not isinstance(source, dict):
+            continue
+        arxiv_id = str(source.get("source_id") or f"unknown_{idx}")
+        candidates.append(
+            Candidate(
+                arxiv_id=arxiv_id,
+                title=str(source.get("title") or "Untitled"),
+                year=0,
+                authors=[],
+                abstract=str(source.get("snippet") or ""),
+                url=str(source.get("url") or ""),
+                pdf_url=None,
+                categories=[],
+                score=0.0,
+                why_selected=str(source.get("why_relevant") or ""),
+            )
+        )
+
+    return SearchResult(
+        query_plan=QueryPlan(queries=[], time_range="", categories=[]),
+        selected_papers=candidates,
+        ingest_summary=IngestSummary(new_docs_added=0, duplicates_skipped=0),
+        preview_snippets=[],
+        errors=[],
+    )
+
+
+def _fallback_extractor_result(context: str) -> ExtractorResult:
+    try:
+        payload = json.loads(context)
+    except json.JSONDecodeError:
+        payload = {}
+    claims = []
+    if isinstance(payload, dict):
+        claims = payload.get("claims", [])
+
+    extracted_claims: list[ExtractClaim] = []
+    for idx, item in enumerate(claims):
+        if not isinstance(item, dict):
+            continue
+        evidence_text = str(item.get("evidence") or "").strip()
+        evidence = (
+            ExtractEvidence(chunk_id="abstract", quote=evidence_text)
+            if evidence_text
+            else None
+        )
+        extracted_claims.append(
+            ExtractClaim(
+                claim_id=f"c{idx + 1}",
+                doc_id=str(item.get("source_id") or f"unknown_{idx}"),
+                text=str(item.get("claim") or ""),
+                evidence=evidence,
+                concept_tags=[],
+                confidence=float(item.get("confidence") or 0.0),
+            )
+        )
+
+    return ExtractorResult(paper_cards=[], claims=extracted_claims, concepts=[], graph=None)
+
+
+def _normalize_extractor_result(
+    result: ExtractorResult,
+    search_result: SearchResult | None,
+) -> ExtractorResult:
+    paper_cards = list(result.paper_cards)
+    if not paper_cards and search_result is not None:
+        paper_cards = [
+            ExtractPaperCard(
+                arxiv_id=paper.arxiv_id,
+                title=paper.title,
+                year=paper.year,
+                authors=paper.authors,
+                abstract=paper.abstract,
+            )
+            for paper in search_result.selected_papers
+        ]
+
+    concepts = result.concepts or []
+    graph = result.graph
+    return ExtractorResult(
+        paper_cards=paper_cards,
+        claims=result.claims,
+        concepts=concepts,
+        graph=graph,
+    )
+
+
+def _to_verify_extractor_result(result: ExtractorResult) -> VerifyExtractorResult:
+    paper_cards = [
+        VerifyPaperCard(
+            arxiv_id=card.arxiv_id,
+            title=card.title,
+            year=card.year,
+            authors=card.authors,
+            abstract=card.abstract,
+        )
+        for card in result.paper_cards
+    ]
+    claims = [
+        VerifyClaim(
+            claim_id=claim.claim_id,
+            doc_id=claim.doc_id,
+            text=claim.text,
+            evidence=(
+                VerifyEvidence(
+                    chunk_id=claim.evidence.chunk_id,
+                    quote=claim.evidence.quote,
+                    page=claim.evidence.page,
+                )
+                if claim.evidence
+                else None
+            ),
+            concept_tags=claim.concept_tags,
+            confidence=claim.confidence,
+        )
+        for claim in result.claims
+    ]
+
+    return VerifyExtractorResult(
+        paper_cards=paper_cards,
+        claims=claims,
+        concepts=[],
+        graph=None,
+    )
+
+
+def _confidence_from_status(status: str) -> float:
+    return {
+        "supported": 0.7,
+        "weak": 0.4,
+        "unsupported": 0.1,
+        "conflicting": 0.2,
+    }.get(status, 0.0)
+
 
 class OpenAIWriter:
     def __init__(self, model: Optional[str] = None, temperature: Optional[float] = None) -> None:
@@ -99,7 +512,7 @@ class OpenAIWriter:
         self._agent = Agent(
             name="Writer",
             model=resolved_model,
-            model_settings=ModelSettings(temperature=temp_value),
+            model_settings=_build_model_settings(resolved_model, temp_value),
             output_type=ReportOutput,
             instructions=(
                 "You synthesize a research report from the provided JSON input. "
@@ -134,7 +547,7 @@ class OpenAIVisualizer:
         self._agent = Agent(
             name="Visualizer",
             model=resolved_model,
-            model_settings=ModelSettings(temperature=temp_value),
+            model_settings=_build_model_settings(resolved_model, temp_value),
             output_type=AgentOutputSchema(VisualOutput, strict_json_schema=False),
             instructions=(
                 "You convert a report JSON into a UI component spec. "
@@ -484,12 +897,25 @@ def build_agents() -> DemoAgents:
             ) from exc
         visualizer = DSPyVisualizer()
 
+    planner = MockPlanner()
+    searcher = OpenAISearcher()
+    extractor = OpenAIExtractor()
+    verifier = OpenAIVerifier()
+    writer = OpenAIWriter()
+
     return DemoAgents(
         clarifier=clarifier,
-        planner=MockPlanner(),
-        searcher=MockSearcher(),
-        extractor=MockExtractor(),
-        verifier=MockVerifier(),
-        writer=OpenAIWriter(),
+        planner=planner,
+        searcher=searcher,
+        extractor=extractor,
+        verifier=verifier,
+        writer=writer,
         visualizer=visualizer,
+        orchestrator=MockOrchestrator(
+            planner=planner,
+            searcher=searcher,
+            extractor=extractor,
+            verifier=verifier,
+            writer=writer,
+        ),
     )

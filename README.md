@@ -108,9 +108,9 @@ python -m src.runner \
 | --- | --- | --- |
 | Clarifier | Implemented (OpenAI Agents SDK) | 단독 CLI + 단위 테스트 |
 | Planner | Mock | placeholder |
-| Searcher | Mock | placeholder |
-| Extractor | Mock | placeholder |
-| Verifier | Mock | placeholder |
+| Searcher | Implemented (Standalone CLI) | `src/runner.py`로 단독 실행, 메인 데모는 mock 사용 |
+| Extractor | Implemented (OpenAI Agents SDK) | `src/agent/extract/runner.py`로 단독 실행 |
+| Verifier | Implemented (Standalone CLI) | `src/agent/verify/runner.py`로 단독 실행 |
 | Writer | Implemented (OpenAI Agents SDK) | 단독 CLI + 단위 테스트 |
 | Visualizer | Implemented (OpenAI Agents SDK) | 단독 CLI + 단위 테스트 |
 
