@@ -745,7 +745,7 @@ export default function ClarifyClient() {
               <div className="panel-header">
                 <div>
                   <div className="panel-title">Agent Trace</div>
-                  <div className="panel-subtitle">Input -> output payloads (always visible)</div>
+                  <div className="panel-subtitle">Input → output payloads (always visible)</div>
                 </div>
                 <span className="pill">Steps {orderedSteps.length}</span>
               </div>
@@ -761,7 +761,7 @@ export default function ClarifyClient() {
                 <div>
                   <div className="panel-title">Evidence Graph</div>
                   <div className="panel-subtitle">
-                    Sources -> claims -> verifications -> report
+                    Sources → claims → verifications → report
                   </div>
                 </div>
                 <span className="pill">Nodes {graphData.nodes.length}</span>
