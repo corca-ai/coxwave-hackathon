@@ -536,7 +536,11 @@ def run_demo(
     if show_inputs:
         print_json("Orchestrator config", asdict(config))
 
-    orchestrator_out = agents.orchestrator.run(clarified_context, config)
+    try:
+        orchestrator_out = agents.orchestrator.run(clarified_context, config)
+    except Exception as exc:
+        print(f"Orchestrator failed: {exc}")
+        return 1
     print_json("Orchestrator summary", {
         "loops_used": orchestrator_out.loops_used,
         "plan_approved": orchestrator_out.plan_approved,
@@ -549,7 +553,11 @@ def run_demo(
         if show_inputs:
             print_json("Visualize input", visual_payload)
         visual_input = json.dumps(visual_payload, ensure_ascii=True)
-        visual_out = agents.visualizer.run(visual_input)
+        try:
+            visual_out = agents.visualizer.run(visual_input)
+        except Exception as exc:
+            print(f"Visualizer failed: {exc}")
+            return 1
         print_json("Visualization spec", visual_out)
 
     print_section("Done")

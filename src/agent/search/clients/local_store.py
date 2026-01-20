@@ -25,19 +25,33 @@ class LocalStore:
         path = self.artifacts_dir / f"{namespace}_papers.json"
         if not path.exists():
             return set()
-        with open(path, encoding="utf-8") as f:
-            papers = json.load(f)
-        return {p["arxiv_id"] for p in papers}
+        try:
+            with open(path, encoding="utf-8") as f:
+                papers = json.load(f)
+        except (OSError, json.JSONDecodeError):
+            return set()
+        return {p["arxiv_id"] for p in papers if isinstance(p, dict) and p.get("arxiv_id")}
 
     def append_papers(self, namespace: str, candidates: list[Candidate]) -> int:
         """신규 논문을 로컬 JSON에 누적"""
         path = self.artifacts_dir / f"{namespace}_papers.json"
         existing: list[dict] = []
         if path.exists():
-            with open(path, encoding="utf-8") as f:
-                existing = json.load(f)
-        existing_ids = {p["arxiv_id"] for p in existing}
-        new_papers = [c.model_dump() for c in candidates if c.arxiv_id not in existing_ids]
+            try:
+                with open(path, encoding="utf-8") as f:
+                    existing = json.load(f)
+            except (OSError, json.JSONDecodeError):
+                existing = []
+        existing_ids = {
+            p["arxiv_id"] for p in existing if isinstance(p, dict) and p.get("arxiv_id")
+        }
+        seen = set(existing_ids)
+        new_papers: list[dict] = []
+        for c in candidates:
+            if c.arxiv_id in seen:
+                continue
+            seen.add(c.arxiv_id)
+            new_papers.append(c.model_dump())
         if new_papers:
             with open(path, "w", encoding="utf-8") as f:
                 json.dump(existing + new_papers, f, ensure_ascii=False, indent=2)
@@ -48,6 +62,9 @@ class LocalStore:
         path = self.artifacts_dir / f"{namespace}_papers.json"
         if not path.exists():
             return 0
-        with open(path, encoding="utf-8") as f:
-            papers = json.load(f)
-        return len(papers)
+        try:
+            with open(path, encoding="utf-8") as f:
+                papers = json.load(f)
+        except (OSError, json.JSONDecodeError):
+            return 0
+        return len(papers) if isinstance(papers, list) else 0

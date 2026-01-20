@@ -41,8 +41,15 @@ def _rag_ingest_candidates_impl(
     """
     store = get_store()
     existing_ids = store.load_existing_ids(namespace)
-    new_candidates = [c for c in candidates if c.arxiv_id not in existing_ids]
-    duplicates = len(candidates) - len(new_candidates)
+    seen = set(existing_ids)
+    new_candidates: list[Candidate] = []
+    duplicates = 0
+    for c in candidates:
+        if c.arxiv_id in seen:
+            duplicates += 1
+            continue
+        seen.add(c.arxiv_id)
+        new_candidates.append(c)
     new_docs_added = store.append_papers(namespace, new_candidates)
     return IngestSummary(
         new_docs_added=new_docs_added,
