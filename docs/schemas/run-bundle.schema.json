@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "run-bundle.schema.json",
+  "title": "RunBundle",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["run_id", "created_at", "query", "steps"],
+  "properties": {
+    "run_id": { "type": "string" },
+    "created_at": { "type": "string", "format": "date-time" },
+    "query": { "type": "string" },
+    "meta": { "type": "object", "additionalProperties": true },
+    "steps": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/RunStep" }
+    }
+  },
+  "$defs": {
+    "RunStep": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "input", "output"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "enum": [
+            "clarify",
+            "plan",
+            "search",
+            "extract",
+            "verify",
+            "write",
+            "visualize"
+          ]
+        },
+        "input": {
+          "type": ["object", "array", "string", "number", "boolean", "null"]
+        },
+        "output": {
+          "type": ["object", "array", "string", "number", "boolean", "null"]
+        },
+        "status": { "type": "string", "enum": ["ok", "error", "skipped"] },
+        "started_at": { "type": "string", "format": "date-time" },
+        "ended_at": { "type": "string", "format": "date-time" },
+        "trace_id": { "type": "string" }
+      }
+    }
+  }
+}
