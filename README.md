@@ -141,6 +141,8 @@ python3 clarifier_cli.py --query "Your research question"
 ```
 
 `.env` 파일에 `OPENAI_API_KEY`를 넣어두면 자동으로 로드된다.
+Clarifier 반복 횟수는 `DEMO_MAX_CLARIFY_ROUNDS`로 지정하고, `--clarify-rounds`로 오버라이드할 수 있다. 기본값은 2이다.
+각 단계 입력 payload는 기본으로 출력되며, 추가 설정 없이도 전달 경로를 확인할 수 있다.
 
 ### agents_impl.py 인터페이스
 
@@ -187,7 +189,7 @@ python3 main.py --mock --query "Investigate RAG and hallucination in legal QA"
 ```
 
 테스트 실행 로그는 `tests/_artifacts/`에 저장된다.
-`TEST_OBSERVE=1`을 설정하면 E2E 로그가 콘솔에도 출력된다.
+E2E 테스트는 콘솔에도 전체 로그를 출력한다.
 
 ## 향후 계획
 

@@ -1,6 +1,8 @@
+import json
 import os
 import unittest
 import warnings
+from dataclasses import asdict
 
 from agents_impl import build_agents
 from env_loader import load_env
@@ -20,6 +22,7 @@ class ClarifierAgentTests(unittest.TestCase):
         output = self.agents.clarifier.run("AI alignment")
         artifact = write_json_artifact("clarifier_ambiguous.json", output)
         print(f"Clarifier ambiguous output saved to {artifact}")
+        print(json.dumps(asdict(output), indent=2, ensure_ascii=True))
         self.assertIsInstance(output, ClarifyOutput)
         self.assertGreaterEqual(len(output.clarifying_questions), 1)
         self.assertFalse(output.is_clear_enough)
@@ -29,6 +32,7 @@ class ClarifierAgentTests(unittest.TestCase):
         output = self.agents.clarifier.run("Fast LLM evals")
         artifact = write_json_artifact("clarifier_assumptions.json", output)
         print(f"Clarifier assumptions output saved to {artifact}")
+        print(json.dumps(asdict(output), indent=2, ensure_ascii=True))
         self.assertIsInstance(output, ClarifyOutput)
         self.assertIsNotNone(output.assumptions)
 

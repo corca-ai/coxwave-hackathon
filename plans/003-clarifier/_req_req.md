@@ -35,3 +35,49 @@ _req_req.md 는 내가 일부러 넣어둔 것이다. 앞으로도 이렇게 프
 ---
 
 자동화 테스트 돌려봤더니 통과하긴 하는데, 왜 통과하는지 모르겠다. observability를 추가해줘. 그리고 자동화 테스트 말고 직접 테스트하는 방법도 READEM에 업데이트.
+
+---
+
+직접 해보니 몇 가지 의문이 있다. 네 의견이 궁금하다.
+- 자동화 테스트: observability가 부족. 어떤 쿼리가 들어가서 어떻게 됐는지 안 보임. 수동 테스트처럼 보여야 하지 않을까?
+- clarifier 동작: 나는 ambiguity가 충분히 해소되지 않았으면 계속해서 루프를 돌기를 기대했는데 현재 그렇게 되어 있는가? (아닌 것 같다)
+- 데모에서 clarifier 와 다음의 연결: clarifier의 아웃풋이 다음 에이전트로 연결되어 있는지 모르겠다. 데모 실행시에는 아닌 것으로 보였다.
+
+---
+
+루프 최대 횟수는 환경변수로 지정하되, CLI option으로 오버라이드 가능하도록. 전달은 JSON payload로 충분.
+
+---
+
+직접 실행해봤는데, plan으로 내 응답이 넘어가는지 여전히 모르겠음. mock이랑 똑같이 뜨는 것 같은데?
+
+Plan:
+{
+  "plan_summary": "Define scope, gather sources, extract claims, verify, summarize.",
+  "steps": [
+    "Clarify scope and key terms",
+    "Collect primary sources",
+    "Extract claims and evidence",
+    "Verify and synthesize"
+  ],
+  "success_criteria": [
+    "At least 3 supported claims",
+    "Clear limitations"
+  ],
+  "data_needs": [
+    "Primary sources",
+    "Recent surveys"
+  ]
+}
+
+---
+
+show-inputs 할 필요 없이 항상 observable하게 해줘.
+
+---
+
+이번 세션에서 너와 내가 작업 스타일을 맞추기 위해 많은 대화를 했는데, 내가 네게 처음부터 어떻게 얘기했으면 이런 핑퐁이 줄었을까? 를 고민중이다. 생각해보고 AGENTS.md 에 넣을 만한 내용을 정리해서 추가해줘.
+
+---
+
+모든 반복 루프는 적절한 상한이 있어야 한다, 그걸 env로 설정하고 cli에서 오버라이드 가능. 이것도 적절히 추가해줘.

@@ -2,10 +2,12 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, is_dataclass
 from typing import List, Optional, Protocol
 
+from env_loader import load_env
 
 @dataclass
 class ClarifyOutput:
@@ -144,7 +146,8 @@ def print_section(title: str) -> None:
 
 def print_json(label: str, data: object) -> None:
     print(f"{label}:")
-    print(json.dumps(asdict(data), indent=2, ensure_ascii=True))
+    payload = asdict(data) if is_dataclass(data) else data
+    print(json.dumps(payload, indent=2, ensure_ascii=True))
 
 
 def ask(prompt: str) -> str:
@@ -301,33 +304,98 @@ def load_agents(use_mock: bool) -> DemoAgents:
     return agents
 
 
-def run_demo(agents: DemoAgents, query: str, visualize: bool) -> int:
-    print_section("Clarify")
-    try:
-        clarify_out = agents.clarifier.run(query)
-    except Exception as exc:
-        print(f"Clarifier failed: {exc}")
-        return 1
-    print_json("Clarifier output", clarify_out)
+def _run_clarifier_loop(agents: DemoAgents, query: str, max_rounds: int) -> tuple[ClarifyOutput, list[dict]]:
+    rounds: list[dict] = []
+    current_query = query
+    last_output: Optional[ClarifyOutput] = None
 
-    clarified_context = f"Original query: {query}"
-    if not clarify_out.is_clear_enough and clarify_out.clarifying_questions:
+    for idx in range(max_rounds):
+        title = "Clarify" if idx == 0 else f"Clarify (Round {idx + 1})"
+        print_section(title)
+        try:
+            clarify_out = agents.clarifier.run(current_query)
+        except Exception as exc:
+            print(f"Clarifier failed: {exc}")
+            raise
+        print_json("Clarifier output", clarify_out)
+        last_output = clarify_out
+
+        if clarify_out.is_clear_enough or not clarify_out.clarifying_questions:
+            rounds.append(
+                {
+                    "input": current_query,
+                    "output": asdict(clarify_out),
+                    "answers": [],
+                    "skipped": False,
+                }
+            )
+            break
+
         skip = ask("Type 'fast' to skip clarifications, or press Enter to answer: ").lower()
         if skip in {"fast", "skip"}:
-            clarified_context += "\nNote: user skipped clarifications."
-        else:
-            answers = []
-            for question in clarify_out.clarifying_questions:
-                answer = ask(f"{question}\n> ")
-                answers.append(f"Q: {question}\nA: {answer}")
-            clarified_context += "\nClarifications:\n" + "\n".join(answers)
-    else:
-        if clarify_out.interpreted_query:
-            clarified_context = f"Interpreted query: {clarify_out.interpreted_query}"
-        if clarify_out.assumptions:
-            clarified_context += "\nAssumptions: " + ", ".join(clarify_out.assumptions)
+            rounds.append(
+                {
+                    "input": current_query,
+                    "output": asdict(clarify_out),
+                    "answers": [],
+                    "skipped": True,
+                }
+            )
+            break
+
+        answers = []
+        for question in clarify_out.clarifying_questions:
+            answer = ask(f"{question}\n> ")
+            answers.append({"question": question, "answer": answer})
+        rounds.append(
+            {
+                "input": current_query,
+                "output": asdict(clarify_out),
+                "answers": answers,
+                "skipped": False,
+            }
+        )
+
+        followup_lines = [f"Original query: {query}", "Clarifications:"]
+        for entry in answers:
+            followup_lines.append(f"Q: {entry['question']}")
+            followup_lines.append(f"A: {entry['answer']}")
+        current_query = "\n".join(followup_lines)
+
+    if last_output is None:
+        raise RuntimeError("Clarifier did not produce output.")
+    return last_output, rounds
+
+
+def run_demo(
+    agents: DemoAgents,
+    query: str,
+    visualize: bool,
+    max_clarify_rounds: int = 2,
+    show_inputs: bool = True,
+) -> int:
+    print_section("Input")
+    print(f"Query: {query}")
+
+    try:
+        clarify_out, clarifier_rounds = _run_clarifier_loop(
+            agents, query, max_rounds=max_clarify_rounds
+        )
+    except Exception:
+        return 1
+
+    clarifier_payload = {
+        "original_query": query,
+        "rounds": clarifier_rounds,
+        "final": asdict(clarify_out),
+    }
+    print_json("Clarifier context", clarifier_payload)
+
+    clarified_context = json.dumps(clarifier_payload, ensure_ascii=True)
 
     print_section("Plan")
+    if show_inputs:
+        print_json("Plan input", clarifier_payload)
     plan_out = agents.planner.run(clarified_context)
     print_json("Plan", plan_out)
 
@@ -341,17 +409,26 @@ def run_demo(agents: DemoAgents, query: str, visualize: bool) -> int:
             return 0
 
     print_section("Search")
-    search_input = json.dumps(asdict(plan_out), ensure_ascii=True)
+    search_payload = {"plan": asdict(plan_out), "clarifier": clarifier_payload}
+    if show_inputs:
+        print_json("Search input", search_payload)
+    search_input = json.dumps(search_payload, ensure_ascii=True)
     search_out = agents.searcher.run(search_input)
     print_json("Search results", search_out)
 
     print_section("Extract")
-    extract_input = json.dumps(asdict(search_out), ensure_ascii=True)
+    extract_payload = asdict(search_out)
+    if show_inputs:
+        print_json("Extract input", extract_payload)
+    extract_input = json.dumps(extract_payload, ensure_ascii=True)
     extract_out = agents.extractor.run(extract_input)
     print_json("Extracted claims", extract_out)
 
     print_section("Verify")
-    verify_input = json.dumps(asdict(extract_out), ensure_ascii=True)
+    verify_payload = asdict(extract_out)
+    if show_inputs:
+        print_json("Verify input", verify_payload)
+    verify_input = json.dumps(verify_payload, ensure_ascii=True)
     verify_out = agents.verifier.run(verify_input)
     print_json("Verification", verify_out)
 
@@ -366,15 +443,15 @@ def run_demo(agents: DemoAgents, query: str, visualize: bool) -> int:
             return 0
 
     supported = [v for v in verify_out.verdicts if v.verdict.lower() == "supported"]
-    writer_input = json.dumps(
-        {
-            "query": clarified_context,
-            "plan": asdict(plan_out),
-            "sources": asdict(search_out),
-            "supported_claims": [asdict(v) for v in supported],
-        },
-        ensure_ascii=True,
-    )
+    writer_payload = {
+        "clarifier": clarifier_payload,
+        "plan": asdict(plan_out),
+        "sources": asdict(search_out),
+        "supported_claims": [asdict(v) for v in supported],
+    }
+    if show_inputs:
+        print_json("Write input", writer_payload)
+    writer_input = json.dumps(writer_payload, ensure_ascii=True)
 
     print_section("Write")
     report_out = agents.writer.run(writer_input)
@@ -382,7 +459,10 @@ def run_demo(agents: DemoAgents, query: str, visualize: bool) -> int:
 
     if visualize:
         print_section("Visualize")
-        visual_input = json.dumps(asdict(report_out), ensure_ascii=True)
+        visual_payload = asdict(report_out)
+        if show_inputs:
+            print_json("Visualize input", visual_payload)
+        visual_input = json.dumps(visual_payload, ensure_ascii=True)
         visual_out = agents.visualizer.run(visual_input)
         print_json("Visualization spec", visual_out)
 
@@ -396,17 +476,49 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--query", help="Research question to run", default=None)
     parser.add_argument("--mock", action="store_true", help="Run with mock agent outputs")
     parser.add_argument("--no-visualize", action="store_true", help="Skip visualizer step")
+    parser.add_argument(
+        "--show-inputs",
+        action="store_true",
+        help="Print input payloads for each agent step (always on by default)",
+    )
+    parser.add_argument(
+        "--clarify-rounds",
+        type=int,
+        default=None,
+        help="Max clarifier rounds (overrides DEMO_MAX_CLARIFY_ROUNDS). Example: --clarify-rounds 3",
+    )
     return parser.parse_args()
 
 
 def main() -> int:
+    load_env(keys=["DEMO_MAX_CLARIFY_ROUNDS"])
     args = parse_args()
     query = args.query or ask("Research question: ")
     if not query:
         print("No query provided.")
         return 1
     agents = load_agents(args.mock)
-    return run_demo(agents, query, visualize=not args.no_visualize)
+    env_rounds = os.getenv("DEMO_MAX_CLARIFY_ROUNDS")
+    if args.clarify_rounds is not None:
+        max_rounds = args.clarify_rounds
+    elif env_rounds:
+        try:
+            max_rounds = int(env_rounds)
+        except ValueError:
+            max_rounds = 2
+    else:
+        max_rounds = 2
+
+    if max_rounds < 1:
+        max_rounds = 1
+
+    return run_demo(
+        agents,
+        query,
+        visualize=not args.no_visualize,
+        max_clarify_rounds=max_rounds,
+        show_inputs=True,
+    )
 
 
 if __name__ == "__main__":
