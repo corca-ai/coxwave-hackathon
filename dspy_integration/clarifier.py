@@ -5,7 +5,7 @@ from typing import Any, Optional
 
 from main import ClarifyOutput
 
-from dspy_utils import configure_dspy, dspy, require_dspy, resolve_dspy_settings
+from .utils import configure_dspy, dspy, require_dspy, resolve_dspy_settings
 
 
 def _coerce_list(value: Any) -> list[str]:

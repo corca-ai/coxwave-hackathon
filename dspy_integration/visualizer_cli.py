@@ -5,13 +5,17 @@ import json
 import sys
 from dataclasses import asdict
 
-from dspy_clarifier import DSPyClarifier
+from .visualizer import DSPyVisualizer
 from env_loader import load_env
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Run the DSPy Clarifier only.")
-    parser.add_argument("--query", required=True, help="Research question to clarify")
+    parser = argparse.ArgumentParser(description="Run the DSPy Visualizer only.")
+    parser.add_argument(
+        "--report-json",
+        required=True,
+        help="Report JSON to visualize",
+    )
     return parser.parse_args()
 
 
@@ -19,11 +23,11 @@ def main() -> int:
     load_env(keys=["OPENAI_API_KEY", "DSPY_MODEL", "DSPY_TEMPERATURE", "DSPY_MAX_TOKENS"])
     args = parse_args()
     try:
-        clarifier = DSPyClarifier()
+        visualizer = DSPyVisualizer()
     except RuntimeError as exc:
         print(str(exc))
         return 1
-    output = clarifier.run(args.query)
+    output = visualizer.run(args.report_json)
     print(json.dumps(asdict(output), indent=2, ensure_ascii=True))
     return 0
 

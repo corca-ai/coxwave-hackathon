@@ -86,7 +86,7 @@ def load_agents(engine: str, use_mock: bool, agent_name: str):
         raise RuntimeError("--mock is only supported with --engine agents.")
 
     try:
-        from dspy_agents import build_dspy_agents
+        from dspy_integration.agents import build_dspy_agents
     except ImportError as exc:
         raise RuntimeError("DSPy agents are unavailable.") from exc
 

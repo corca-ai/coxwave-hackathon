@@ -3,8 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Optional
 
-from dspy_clarifier import DSPyClarifier
-from dspy_visualizer import DSPyVisualizer
+from .clarifier import DSPyClarifier
+from .visualizer import DSPyVisualizer
 
 
 @dataclass

@@ -9,10 +9,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Optional
 
-from dspy_agents import DSPyAgents
-from dspy_clarifier import DSPyClarifier, prediction_to_output as clarify_pred_to_output
-from dspy_utils import configure_dspy, require_dspy, resolve_dspy_settings
-from dspy_visualizer import DSPyVisualizer, prediction_to_output as viz_pred_to_output
+from .agents import DSPyAgents
+from .clarifier import DSPyClarifier, prediction_to_output as clarify_pred_to_output
+from .utils import configure_dspy, require_dspy, resolve_dspy_settings
+from .visualizer import DSPyVisualizer, prediction_to_output as viz_pred_to_output
 from env_loader import load_env
 from evals.clarifier_eval import score_output as clarifier_score
 from evals.io import load_jsonl
@@ -216,13 +216,13 @@ def main() -> int:
 
     samples = load_jsonl(Path(dataset_path))
     if args.agent == "clarifier":
-        from dspy_clarifier import ClarifierModule
+        from .clarifier import ClarifierModule
 
         examples = _clarifier_examples(samples)
         metric = _clarifier_metric
         module = ClarifierModule()
     else:
-        from dspy_visualizer import VisualizerModule
+        from .visualizer import VisualizerModule
 
         examples = _visualizer_examples(samples)
         metric = _visualizer_metric

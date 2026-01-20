@@ -4,7 +4,7 @@ import json
 from dataclasses import replace
 from typing import Any, Optional
 
-from dspy_utils import configure_dspy, dspy, require_dspy, resolve_dspy_settings
+from .utils import configure_dspy, dspy, require_dspy, resolve_dspy_settings
 from main import VisualComponent, VisualOutput
 
 

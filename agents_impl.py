@@ -270,7 +270,7 @@ def build_agents() -> DemoAgents:
     use_dspy = os.getenv("USE_DSPY_CLARIFIER", "").lower() in {"1", "true", "yes"}
     if use_dspy:
         try:
-            from dspy_clarifier import DSPyClarifier
+            from dspy_integration.clarifier import DSPyClarifier
         except ImportError as exc:
             raise RuntimeError(
                 "USE_DSPY_CLARIFIER is set but DSPy is unavailable."
@@ -280,7 +280,7 @@ def build_agents() -> DemoAgents:
     use_dspy_visualizer = os.getenv("USE_DSPY_VISUALIZER", "").lower() in {"1", "true", "yes"}
     if use_dspy_visualizer:
         try:
-            from dspy_visualizer import DSPyVisualizer
+            from dspy_integration.visualizer import DSPyVisualizer
         except ImportError as exc:
             raise RuntimeError(
                 "USE_DSPY_VISUALIZER is set but DSPy is unavailable."

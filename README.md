@@ -222,7 +222,7 @@ python3 visualizer_cli.py --input tests/fixtures/visualizer_report.json
 python3 main.py --mock --query "Investigate RAG and hallucination in legal QA"
 
 # DSPy Clarifier 단독 확인 (DSPy 설치 필요)
-python3 dspy_clarifier_cli.py --query "AI alignment"
+python3 -m dspy_integration.clarifier_cli --query "AI alignment"
 ```
 
 테스트 실행 로그는 `tests/_artifacts/`에 저장된다.

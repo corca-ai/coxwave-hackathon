@@ -41,12 +41,12 @@ Optimization loop bounds:
 
 Clarifier:
 ```bash
-python3 dspy_clarifier_cli.py --query "AI alignment"
+python3 -m dspy_integration.clarifier_cli --query "AI alignment"
 ```
 
 Visualizer (input must be report JSON):
 ```bash
-python3 dspy_visualizer_cli.py --report-json '{"title":"Demo","executive_summary":"...","key_findings":["A"],"limitations":["L"],"citations":["https://example.com"]}'
+python3 -m dspy_integration.visualizer_cli --report-json '{"title":"Demo","executive_summary":"...","key_findings":["A"],"limitations":["L"],"citations":["https://example.com"]}'
 ```
 
 ## Run evals with DSPy engine
@@ -67,20 +67,20 @@ This compiles an optimized DSPy module using the dataset and reports baseline vs
 
 Clarifier:
 ```bash
-python3 dspy_optimize_cli.py --agent clarifier --dataset evals/datasets/clarifier.jsonl
+python3 -m dspy_integration.optimize_cli --agent clarifier --dataset evals/datasets/clarifier.jsonl
 ```
 
 Visualizer:
 ```bash
-python3 dspy_optimize_cli.py --agent visualizer --dataset evals/datasets/visualizer.jsonl
+python3 -m dspy_integration.optimize_cli --agent visualizer --dataset evals/datasets/visualizer.jsonl
 ```
 
 Artifacts are written to `evals/_artifacts/` by default (override with `EVAL_ARTIFACT_DIR`).
 
 ## Extending DSPy to a new agent
 
-1. Add a DSPy module in `dspy_<agent>.py` with a `run()` that returns the dataclass output.
+1. Add a DSPy module in `dspy_integration/<agent>.py` with a `run()` that returns the dataclass output.
 2. Add a JSONL dataset in `evals/datasets/<agent>.jsonl`.
 3. Add an eval spec in `evals/<agent>_eval.py` and register it in `evals/registry.py`.
-4. Update `dspy_agents.py` and `dspy_optimize_cli.py` to route the new agent.
+4. Update `dspy_integration/agents.py` and `dspy_integration/optimize_cli.py` to route the new agent.
 5. Add a unit test in `tests/` to validate the eval harness for the new agent.
