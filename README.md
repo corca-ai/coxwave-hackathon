@@ -37,10 +37,24 @@ python -m src.runner \
   --namespace demo \
   --target-docs 20 \
   --artifacts-dir artifacts
-Visualizer 단독 실행:
+```
+
+### Visualizer 단독 실행
+
 ```bash
 python3 visualizer_cli.py --input path/to/report.json
 ```
+
+### Frontend UI (Local)
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+브라우저에서 `http://localhost:3000`을 열면 된다. 기본 데모 데이터는 `frontend/public/demo/`를 사용하며, Run Bundle JSON과 stream NDJSON을 업로드해서 교체할 수 있다.
+Vercel 배포 시 Root Directory는 `frontend/`, Build Command는 `npm run build`, Output Directory는 `.next` 기본값을 사용한다.
 
 ## 문제 정의
 
@@ -94,6 +108,7 @@ python3 visualizer_cli.py --input path/to/report.json
 - [ ] OpenAI API 사용 (일부 에이전트만 적용)
 - [ ] 멀티에이전트 구현
 - [x] 실행 가능한 데모 (Mock)
+- [x] Frontend UI (Graph/Trace/Streaming)
 
 ## 에이전트 구현 현황
 
@@ -160,7 +175,7 @@ python3 visualizer_cli.py --input path/to/report.json
 - **파이프라인 최적화**: [DSPy](https://dspy.ai/) - metric 기반 자동 최적화
 - **지식 그래프**: GraphDB (OWL 추론 + SHACL 검증)
 - **스키마**: RDF/OWL + SPARQL
-- **Frontend**: (TBD)
+- **Frontend**: Next.js App Router + @xyflow/react (React Flow)
 
 ## 설치 및 실행
 
@@ -182,11 +197,17 @@ python3 main.py --query "Your research question"
 
 # Clarifier 단독 실행
 python3 clarifier_cli.py --query "Your research question"
+
+# Frontend UI
+cd frontend
+npm install
+npm run dev
 ```
 
 `.env` 파일에 `OPENAI_API_KEY`를 넣어두면 자동으로 로드된다.
 Clarifier 반복 횟수는 `DEMO_MAX_CLARIFY_ROUNDS`로 지정하고, `--clarify-rounds`로 오버라이드할 수 있다. 기본값은 2이다.
 각 단계 입력 payload는 기본으로 출력되며, 추가 설정 없이도 전달 경로를 확인할 수 있다.
+Frontend에서는 `NEXT_PUBLIC_STREAM_MAX_EVENTS`로 스트림 재생 상한을 설정하고, `?maxEvents=` 쿼리로 오버라이드할 수 있다.
 
 ### agents_impl.py 인터페이스
 
@@ -209,6 +230,8 @@ def build_agents() -> DemoAgents:
 - [meta-strategy.md](./meta-strategy.md) - 개발 전략
 - [problem-1pager-demo.md](./plans/002-demo/problem-1pager.md) - 데모 성공 기준/측정
 - [visual-output.schema.json](./docs/schemas/visual-output.schema.json) - Visualizer JSON 스키마
+- [run-bundle.schema.json](./docs/schemas/run-bundle.schema.json) - Run Bundle 스키마
+- [stream-events.schema.json](./docs/schemas/stream-events.schema.json) - 스트리밍 이벤트 스키마
 - [retrospective.md](./retrospective.md) - 기존 시스템 구축 회고
 - [kg2 스킬 문서](../.claude/skills/kg2/SKILL.md) - 그래프 운영 규칙/스키마 정본
 - [Search Agent 설계 문서](docs/plans/2026-01-20-search-agent-design.md)
@@ -232,6 +255,14 @@ python3 -m unittest tests/test_visualizer.py
 python3 -m unittest tests/test_demo_e2e.py
 ```
 
+### Frontend 테스트
+
+```bash
+cd frontend
+npm run test:unit
+npm run test:e2e
+```
+
 ### 수동 테스트
 
 ```bash
@@ -253,6 +284,8 @@ python3 -m dspy_integration.clarifier_cli --query "AI alignment"
 
 테스트 실행 로그는 `tests/_artifacts/`에 저장된다.
 E2E 테스트는 콘솔에도 전체 로그를 출력한다.
+프론트엔드 테스트 로그/아티팩트는 `frontend/tests/_artifacts/`에 저장된다.
+실제 실행 환경: 2026-01-20, node v22.17.0, npm 10.9.2.
 
 ## 평가(Evals)
 
@@ -277,7 +310,8 @@ python3 evals_cli.py --agent clarifier --engine dspy --dataset evals/datasets/cl
 - [ ] 지식 그래프 스키마 확정 및 초기 데이터 수집
 - [ ] DSPy 기반 추출/검증 파이프라인 구축
 - [ ] Agent SDK로 워크플로우 통합
-- [ ] UI 구현 및 Observability 추가
+- [x] UI 구현 및 Observability 추가 (Graph/Trace/Streaming, local demo)
+- [ ] Vercel 배포 (Frontend)
 - [ ] Self-Healing 파이프라인 자동화
 
 ## 팀원
