@@ -1,10 +1,14 @@
 import json
-import click
+import os
 from pathlib import Path
+
+import click
 from agents import Runner
+
 from agent.verify.agent import verifier_agent
 from agent.verify.schemas import VerifierRequest, ExtractorResult
 from agent.verify.tools.rag import set_artifacts_dir
+from env_loader import load_env
 
 
 @click.command()
@@ -21,14 +25,24 @@ def verify(
     artifacts_dir: str
 ):
     """Verifier Agent 실행: Extractor 결과 검증"""
+    load_env(keys=["OPENAI_API_KEY", "OPENAI_MODEL", "OPENAI_TEMPERATURE"])
+    if not os.getenv("OPENAI_API_KEY"):
+        raise click.ClickException("OPENAI_API_KEY is not set.")
 
     # 아티팩트 디렉토리 설정
     artifacts_path = Path(artifacts_dir)
     set_artifacts_dir(artifacts_path)
 
     # Extractor 결과 로드
-    with open(extractor_result, encoding="utf-8") as f:
-        extractor_data = json.load(f)
+    try:
+        with open(extractor_result, encoding="utf-8") as f:
+            extractor_data = json.load(f)
+    except FileNotFoundError as exc:
+        raise click.ClickException(f"Extractor result file not found: {extractor_result}") from exc
+    except json.JSONDecodeError as exc:
+        raise click.ClickException(f"Extractor result must be valid JSON: {exc}") from exc
+    except OSError as exc:
+        raise click.ClickException(f"Failed to read extractor result: {exc}") from exc
 
     request = VerifierRequest(
         goal=goal,
@@ -38,12 +52,16 @@ def verify(
 
     click.echo(f"Verifying: {goal}")
     click.echo(f"Claims: {len(request.extractor_result.claims)}")
+    click.echo("Verify input:")
+    click.echo(json.dumps(request.model_dump(), indent=2, ensure_ascii=True))
 
     # Agent 실행 - JSON을 user message로 전달
     result = Runner.run_sync(verifier_agent, request.model_dump_json())
 
     # 결과 출력
     output_data = result.final_output.model_dump()
+    click.echo("Verify output:")
+    click.echo(json.dumps(output_data, indent=2, ensure_ascii=True))
     click.echo("\n=== Verification Result ===")
     click.echo(f"Quality Gate: {'PASS' if output_data['quality_gate']['passed'] else 'FAIL'}")
     click.echo(f"Evidence Coverage: {output_data['metrics']['evidence_coverage']:.2%}")

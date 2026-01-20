@@ -22,6 +22,8 @@ def main() -> int:
     if not os.getenv("OPENAI_API_KEY"):
         print("OPENAI_API_KEY is not set.")
         return 1
+    print("Clarifier input:")
+    print(json.dumps({"query": args.query}, indent=2, ensure_ascii=True))
     clarifier = OpenAIClarifier()
     output = clarifier.run(args.query)
     print(json.dumps(asdict(output), indent=2, ensure_ascii=True))
