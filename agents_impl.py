@@ -926,16 +926,47 @@ def _normalize_visual_output(output: VisualOutput, report: dict[str, Any]) -> Vi
 def build_agents() -> DemoAgents:
     load_env(
         keys=[
+            "USE_DSPY_ALL",
             "USE_DSPY_CLARIFIER",
+            "USE_DSPY_PLANNER",
+            "USE_DSPY_SEARCHER",
+            "USE_DSPY_EXTRACTOR",
+            "USE_DSPY_VERIFIER",
+            "USE_DSPY_WRITER",
             "USE_DSPY_VISUALIZER",
             "DSPY_MODEL",
             "DSPY_TEMPERATURE",
             "DSPY_MAX_TOKENS",
+            "DSPY_CLARIFIER_MODEL",
+            "DSPY_CLARIFIER_TEMPERATURE",
+            "DSPY_CLARIFIER_MAX_TOKENS",
+            "DSPY_PLANNER_MODEL",
+            "DSPY_PLANNER_TEMPERATURE",
+            "DSPY_PLANNER_MAX_TOKENS",
+            "DSPY_SEARCHER_MODEL",
+            "DSPY_SEARCHER_TEMPERATURE",
+            "DSPY_SEARCHER_MAX_TOKENS",
+            "DSPY_EXTRACTOR_MODEL",
+            "DSPY_EXTRACTOR_TEMPERATURE",
+            "DSPY_EXTRACTOR_MAX_TOKENS",
+            "DSPY_VERIFIER_MODEL",
+            "DSPY_VERIFIER_TEMPERATURE",
+            "DSPY_VERIFIER_MAX_TOKENS",
+            "DSPY_WRITER_MODEL",
+            "DSPY_WRITER_TEMPERATURE",
+            "DSPY_WRITER_MAX_TOKENS",
+            "DSPY_VISUALIZER_MODEL",
+            "DSPY_VISUALIZER_TEMPERATURE",
+            "DSPY_VISUALIZER_MAX_TOKENS",
         ]
     )
+    def _env_flag(name: str) -> bool:
+        return os.getenv(name, "").lower() in {"1", "true", "yes"}
+
+    use_dspy_all = _env_flag("USE_DSPY_ALL")
+
     clarifier = OpenAIClarifier()
-    use_dspy = os.getenv("USE_DSPY_CLARIFIER", "").lower() in {"1", "true", "yes"}
-    if use_dspy:
+    if use_dspy_all or _env_flag("USE_DSPY_CLARIFIER"):
         try:
             from dspy_integration.clarifier import DSPyClarifier
         except ImportError as exc:
@@ -943,9 +974,49 @@ def build_agents() -> DemoAgents:
                 "USE_DSPY_CLARIFIER is set but DSPy is unavailable."
             ) from exc
         clarifier = DSPyClarifier()
+
+    planner = OpenAIPlanner()
+    if use_dspy_all or _env_flag("USE_DSPY_PLANNER"):
+        try:
+            from dspy_integration.planner import DSPyPlanner
+        except ImportError as exc:
+            raise RuntimeError("USE_DSPY_PLANNER is set but DSPy is unavailable.") from exc
+        planner = DSPyPlanner()
+
+    searcher = OpenAISearcher()
+    if use_dspy_all or _env_flag("USE_DSPY_SEARCHER"):
+        try:
+            from dspy_integration.searcher import DSPySearcher
+        except ImportError as exc:
+            raise RuntimeError("USE_DSPY_SEARCHER is set but DSPy is unavailable.") from exc
+        searcher = DSPySearcher()
+
+    extractor = OpenAIExtractor()
+    if use_dspy_all or _env_flag("USE_DSPY_EXTRACTOR"):
+        try:
+            from dspy_integration.extractor import DSPyExtractor
+        except ImportError as exc:
+            raise RuntimeError("USE_DSPY_EXTRACTOR is set but DSPy is unavailable.") from exc
+        extractor = DSPyExtractor()
+
+    verifier = OpenAIVerifier()
+    if use_dspy_all or _env_flag("USE_DSPY_VERIFIER"):
+        try:
+            from dspy_integration.verifier import DSPyVerifier
+        except ImportError as exc:
+            raise RuntimeError("USE_DSPY_VERIFIER is set but DSPy is unavailable.") from exc
+        verifier = DSPyVerifier()
+
+    writer = OpenAIWriter()
+    if use_dspy_all or _env_flag("USE_DSPY_WRITER"):
+        try:
+            from dspy_integration.writer import DSPyWriter
+        except ImportError as exc:
+            raise RuntimeError("USE_DSPY_WRITER is set but DSPy is unavailable.") from exc
+        writer = DSPyWriter()
+
     visualizer = OpenAIVisualizer()
-    use_dspy_visualizer = os.getenv("USE_DSPY_VISUALIZER", "").lower() in {"1", "true", "yes"}
-    if use_dspy_visualizer:
+    if use_dspy_all or _env_flag("USE_DSPY_VISUALIZER"):
         try:
             from dspy_integration.visualizer import DSPyVisualizer
         except ImportError as exc:
@@ -953,12 +1024,6 @@ def build_agents() -> DemoAgents:
                 "USE_DSPY_VISUALIZER is set but DSPy is unavailable."
             ) from exc
         visualizer = DSPyVisualizer()
-
-    planner = OpenAIPlanner()
-    searcher = OpenAISearcher()
-    extractor = OpenAIExtractor()
-    verifier = OpenAIVerifier()
-    writer = OpenAIWriter()
 
     return DemoAgents(
         clarifier=clarifier,

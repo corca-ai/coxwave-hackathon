@@ -122,6 +122,8 @@ def _normalize_visual_output(output: VisualOutput, report: dict[str, Any]) -> Vi
             props = comp.get("props") if isinstance(comp.get("props"), dict) else {}
             components.append(VisualComponent(type=comp_type, props=props))
 
+    components = _schema_validate_components(components)
+
     if not components:
         components = default.components
 
@@ -145,6 +147,35 @@ def _normalize_visual_output(output: VisualOutput, report: dict[str, Any]) -> Vi
         rationale = default.rationale
 
     return VisualOutput(components=normalized, rationale=rationale)
+
+
+def _schema_validate_components(components: list[VisualComponent]) -> list[VisualComponent]:
+    """Light schema validation pass to drop malformed components."""
+    valid: list[VisualComponent] = []
+    for comp in components:
+        if not isinstance(comp, VisualComponent):
+            continue
+        comp_type = (comp.type or "").strip()
+        if not comp_type:
+            continue
+        props = comp.props if isinstance(comp.props, dict) else {}
+        if comp_type == "heading":
+            if not str(props.get("text") or "").strip():
+                continue
+        elif comp_type == "paragraph":
+            if not str(props.get("text") or "").strip():
+                continue
+        elif comp_type in {"bullets", "list"}:
+            items = props.get("items")
+            if not isinstance(items, list) or not [item for item in items if str(item).strip()]:
+                continue
+        elif comp_type == "callout":
+            has_items = isinstance(props.get("items"), list) and [item for item in props.get("items") if str(item).strip()]
+            has_text = bool(str(props.get("text") or "").strip())
+            if not (has_items or has_text):
+                continue
+        valid.append(comp)
+    return valid
 
 
 def prediction_to_output(prediction: Any, report: dict[str, Any]) -> VisualOutput:
@@ -186,7 +217,12 @@ class DSPyVisualizer:
         configure: bool = True,
     ) -> None:
         require_dspy()
-        settings = resolve_dspy_settings(model=model, temperature=temperature, max_tokens=max_tokens)
+        settings = resolve_dspy_settings(
+            model=model,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            agent_name="visualizer",
+        )
         if configure:
             configure_dspy(settings)
         self._module = module or VisualizerModule()

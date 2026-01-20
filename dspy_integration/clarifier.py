@@ -98,7 +98,12 @@ class DSPyClarifier:
         configure: bool = True,
     ) -> None:
         require_dspy()
-        settings = resolve_dspy_settings(model=model, temperature=temperature, max_tokens=max_tokens)
+        settings = resolve_dspy_settings(
+            model=model,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            agent_name="clarifier",
+        )
         if configure:
             configure_dspy(settings)
         self._module = module or ClarifierModule()
