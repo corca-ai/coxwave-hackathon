@@ -16,6 +16,27 @@ Clarifier 단독 실행:
 python3 clarifier_cli.py --query "Ambiguous short query"
 ```
 
+### Search Agent
+
+Search Agent를 단독으로 실행할 수 있다:
+
+```bash
+# 환경 설정
+cp .env.example .env
+# OPENAI_API_KEY 입력
+
+# 의존성 설치
+pip install -e ".[dev]"
+
+# Search Agent 실행
+python -m src.runner --goal "Graph RAG for scientific papers"
+
+# 옵션 지정
+python -m src.runner \
+  --goal "LLM agents for code generation" \
+  --namespace demo \
+  --target-docs 20 \
+  --artifacts-dir artifacts
 Visualizer 단독 실행:
 ```bash
 python3 visualizer_cli.py --input path/to/report.json
@@ -186,12 +207,17 @@ def build_agents() -> DemoAgents:
 - [visual-output.schema.json](./docs/schemas/visual-output.schema.json) - Visualizer JSON 스키마
 - [retrospective.md](./retrospective.md) - 기존 시스템 구축 회고
 - [kg2 스킬 문서](../.claude/skills/kg2/SKILL.md) - 그래프 운영 규칙/스키마 정본
+- [Search Agent 설계 문서](docs/plans/2026-01-20-search-agent-design.md)
+- [Search Agent 구현 계획](docs/plans/2026-01-20-search-agent-impl.md)
 
 ## 테스트
 
 현재 테스트 suite는 **데모 E2E 테스트 + 각 에이전트 단위 테스트**로 구성한다.
 
 ```bash
+# Search Agent 테스트
+pytest tests/ -v
+
 # OPENAI_API_KEY가 없으면 자동으로 skip
 python3 -m unittest tests/test_clarifier.py
 
