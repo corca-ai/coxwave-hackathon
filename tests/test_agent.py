@@ -39,6 +39,6 @@ def test_agent_has_model():
 def test_agent_has_instructions():
     from agents.search.agent import search_agent
 
-    assert "연구 논문 검색 에이전트" in search_agent.instructions
+    assert "research paper search agent" in search_agent.instructions
     assert "search_sources" in search_agent.instructions
     assert "rag_ingest_candidates" in search_agent.instructions
