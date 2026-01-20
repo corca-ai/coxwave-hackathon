@@ -4,13 +4,17 @@
 
 ## 데모
 
-CLI 데모 (Mock):
+CLI 데모 (Mock / Live):
 
 ```bash
+# Mock 모드
 python3 main.py --mock --query "Which techniques improve long-context reliability?"
+
+# 실제 에이전트 모드 (OPENAI_API_KEY 필요)
+python3 main.py --query "Which techniques improve long-context reliability?"
 ```
 
-실제 에이전트 연결 시 `agents_impl.py`의 `build_agents()`에서 각 에이전트를 연결해야 한다.
+실제 에이전트 연결은 `agents_impl.py`의 `build_agents()`에서 구성되어 있다.
 
 ### Clarifier 단독 실행
 
@@ -113,18 +117,19 @@ Vercel 배포 시 Root Directory는 `frontend/`, Build Command는 `npm run build
 
 ## 조건 충족 여부
 
-- [x] OpenAI API 사용 (Clarifier/Visualizer, Search/Verifier Agent SDK)
-- [ ] 멀티에이전트 구현 (E2E 오케스트레이션은 mock 기반)
-- [x] 실행 가능한 데모 (Mock)
+- [x] OpenAI API 사용 (Clarifier/Planner/Search/Extract/Verify/Writer/Visualizer: Agent SDK)
+- [x] 멀티에이전트 구현 (상태 기반 오케스트레이션, mock 모드 지원)
+- [x] 실행 가능한 데모 (Mock + Live)
 - [x] Frontend UI (Graph/Trace/Streaming)
 
 ## 에이전트 구현 현황
 
 | Agent | Status | Notes |
 | --- | --- | --- |
+| Orchestrator | Implemented (state-based) | `main.py`의 Orchestrator loop (live 모드에서 실제 에이전트 호출) |
 | Clarifier | Implemented (OpenAI Agents SDK) | 단독 CLI + 단위 테스트 |
-| Planner | Mock | placeholder |
-| Searcher | Implemented (Standalone CLI) | `src/runner.py`로 단독 실행, 메인 데모는 mock 사용 |
+| Planner | Implemented (OpenAI Agents SDK) | `src/agent/plan` (Orchestrator에서 호출) |
+| Searcher | Implemented (OpenAI Agents SDK) | `src/runner.py`로 단독 실행 가능 |
 | Extractor | Implemented (OpenAI Agents SDK) | `src/agent/extract/runner.py`로 단독 실행 |
 | Verifier | Implemented (Standalone CLI) | `src/agent/verify/runner.py`로 단독 실행 |
 | Writer | Implemented (OpenAI Agents SDK) | 단독 CLI + 단위 테스트 |
@@ -178,10 +183,10 @@ Vercel 배포 시 Root Directory는 `frontend/`, Build Command는 `npm run build
 
 ## 기술 스택
 
-- **LLM**: OpenAI GPT-5.2 / GPT-5-mini
+- **LLM**: OpenAI GPT-4o-mini / GPT-5-mini (에이전트별 기본값, `OPENAI_MODEL`로 일부 구성 가능)
 - **에이전트 프레임워크**: [OpenAI Agent SDK (Python)](https://github.com/openai/openai-agents-python/)
 - **파이프라인 최적화**: [DSPy](https://dspy.ai/) - metric 기반 자동 최적화
-- **지식 그래프**: GraphDB (OWL 추론 + SHACL 검증)
+- **지식 그래프**: GraphDB (Docker 설정 포함, `kg_query`는 v1 mock)
 - **스키마**: RDF/OWL + SPARQL
 - **Frontend**: Next.js App Router + @xyflow/react (React Flow)
 
@@ -234,17 +239,17 @@ def build_agents() -> DemoAgents:
 
 ## 문서
 
-- [concepts.md](./concepts.md) - 지식 그래프/온톨로지 핵심 개념
-- [implementation.md](./implementation.md) - 구현 도구 및 기술 스택
+- [concepts.md](./docs/concepts.md) - 지식 그래프/온톨로지 핵심 개념
+- [implementation.md](./docs/implementation.md) - 구현 도구 및 기술 스택
 - [dspy.md](./docs/dspy.md) - DSPy 사용/최적화 가이드
-- [demo-scenario.md](./demo-scenario.md) - 데모 시나리오 상세
-- [meta-strategy.md](./meta-strategy.md) - 개발 전략
+- [demo-scenario.md](./docs/demo-scenario.md) - 데모 시나리오 상세
+- [meta-strategy.md](./docs/meta-strategy.md) - 개발 전략
 - [problem-1pager-demo.md](./plans/002-demo/problem-1pager.md) - 데모 성공 기준/측정
 - [visual-output.schema.json](./docs/schemas/visual-output.schema.json) - Visualizer JSON 스키마
 - [run-bundle.schema.json](./docs/schemas/run-bundle.schema.json) - Run Bundle 스키마
 - [stream-events.schema.json](./docs/schemas/stream-events.schema.json) - 스트리밍 이벤트 스키마
-- [retrospective.md](./retrospective.md) - 기존 시스템 구축 회고
-- [kg2 스킬 문서](../.claude/skills/kg2/SKILL.md) - 그래프 운영 규칙/스키마 정본
+- [retrospective.md](./docs/retrospective.md) - 기존 시스템 구축 회고
+- [kg2 스킬 문서](./.claude/skills/kg2/SKILL.md) - 그래프 운영 규칙/스키마 정본
 - [Search Agent 설계 문서](docs/plans/2026-01-20-search-agent-design.md)
 - [Search Agent 구현 계획](docs/plans/2026-01-20-search-agent-impl.md)
 
