@@ -433,9 +433,9 @@ class MockOrchestrator:
         sorted_actions = sorted(verify_out.next_actions, key=lambda a: a.priority)
         return sorted_actions[0] if sorted_actions else None
 
-    def run(self, clarify_context: str, config: OrchestratorConfig) -> OrchestratorOutput:
+    async def run(self, clarify_context: str, config: OrchestratorConfig) -> OrchestratorOutput:
         # === PLAN PHASE ===
-        plan_out = self.planner.run(clarify_context)
+        plan_out = await self.planner.run(clarify_context)
         self._log("Plan", "Plan output", plan_out)
 
         # === STATE ACCUMULATION ===
@@ -462,7 +462,7 @@ class MockOrchestrator:
 
             # === SEARCH (if needed) ===
             if next_step in ("search", "search_expand", "search_more_papers"):
-                search_out = self.searcher.run(search_context)
+                search_out = await self.searcher.run(search_context)
                 self._log("Search", "Search results", search_out)
 
                 # Accumulate sources (avoid duplicates by source_id)
@@ -482,12 +482,12 @@ class MockOrchestrator:
                     refined_query=search_out.refined_query if search_out else "",
                     sources=accumulated_sources,
                 )
-                extract_out = self.extractor.run(json.dumps(asdict(extract_input)))
+                extract_out = await self.extractor.run(json.dumps(asdict(extract_input)))
                 self._log("Extract", "Extracted claims", extract_out)
 
             # === VERIFY ===
             if extract_out:
-                verify_out = self.verifier.run(json.dumps(asdict(extract_out)))
+                verify_out = await self.verifier.run(json.dumps(asdict(extract_out)))
                 self._log("Verify", "Verification", verify_out)
 
                 # Accumulate supported/weak verdicts (not unsupported)
@@ -569,7 +569,7 @@ class MockOrchestrator:
             "sources": [asdict(s) for s in accumulated_sources],
             "loops_used": loops_used,
         })
-        report_out = self.writer.run(writer_context)
+        report_out = await self.writer.run(writer_context)
         self._log("Write", "Report", report_out)
 
         return OrchestratorOutput(
@@ -594,7 +594,7 @@ class MockOrchestrator:
 
         try:
             # === PLAN PHASE ===
-            plan_out = self.planner.run(clarify_context)
+            plan_out = await self.planner.run(clarify_context)
             self._log("Plan", "Plan output", plan_out)
 
             yield StreamEvent(
@@ -642,7 +642,7 @@ class MockOrchestrator:
                                 output_data = event.payload.get("output", {})
                                 search_out = _parse_search_output_from_dict(output_data)
                     else:
-                        search_out = self.searcher.run(search_context)
+                        search_out = await self.searcher.run(search_context)
                         yield StreamEvent(
                             type=StreamEventTypes.AGENT_COMPLETE,
                             payload={"output": asdict(search_out)},
@@ -676,7 +676,7 @@ class MockOrchestrator:
                                 output_data = event.payload.get("output", {})
                                 extract_out = _parse_extract_output_from_dict(output_data)
                     else:
-                        extract_out = self.extractor.run(extract_context)
+                        extract_out = await self.extractor.run(extract_context)
                         yield StreamEvent(
                             type=StreamEventTypes.AGENT_COMPLETE,
                             payload={"output": asdict(extract_out)},
@@ -699,7 +699,7 @@ class MockOrchestrator:
                                 output_data = event.payload.get("output", {})
                                 verify_out = _parse_verify_output_from_dict(output_data)
                     else:
-                        verify_out = self.verifier.run(verify_context)
+                        verify_out = await self.verifier.run(verify_context)
                         yield StreamEvent(
                             type=StreamEventTypes.AGENT_COMPLETE,
                             payload={"output": asdict(verify_out)},
@@ -777,7 +777,7 @@ class MockOrchestrator:
                 "total_sources": len(accumulated_sources),
                 "loops_used": loops_used,
             })
-            report_out = self.writer.run(writer_context)
+            report_out = await self.writer.run(writer_context)
 
             yield StreamEvent(
                 type="write_complete",

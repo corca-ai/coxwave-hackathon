@@ -218,7 +218,7 @@ async def run_full_pipeline_stream(request: QueryRequest):
                         if event.type == StreamEventTypes.AGENT_COMPLETE:
                             clarified_output = event.payload.get("output", {})
                 else:
-                    clarified_output = asdict(_agents.clarifier.run(request.query))
+                    clarified_output = asdict(await _agents.clarifier.run(request.query))
 
                 if clarified_output is None:
                     raise RuntimeError("Clarifier did not produce output")
@@ -246,7 +246,7 @@ async def run_full_pipeline_stream(request: QueryRequest):
                     if event.type == StreamEventTypes.AGENT_COMPLETE and event.agent == "orchestrator":
                         orchestrator_output = event.payload.get("output", {})
             else:
-                orchestrator_output = asdict(_agents.orchestrator.run(clarified_context, config))
+                orchestrator_output = asdict(await _agents.orchestrator.run(clarified_context, config))
 
             # Phase 3: Visualize (if report available)
             if orchestrator_output and orchestrator_output.get("report"):
@@ -295,7 +295,7 @@ async def clarify(request: ClarifyRequest):
     if _agents is None:
         raise HTTPException(status_code=503, detail="Agents not initialized")
     try:
-        result = _agents.clarifier.run(request.query)
+        result = await _agents.clarifier.run(request.query)
         return asdict(result)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
@@ -312,7 +312,7 @@ async def orchestrate(request: OrchestratorRequest):
         require_plan_approval=False,
     )
     try:
-        result = _agents.orchestrator.run(request.clarified_context, config)
+        result = await _agents.orchestrator.run(request.clarified_context, config)
         return asdict(result)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
