@@ -260,6 +260,7 @@ def build_agents() -> DemoAgents:
     load_env(
         keys=[
             "USE_DSPY_CLARIFIER",
+            "USE_DSPY_VISUALIZER",
             "DSPY_MODEL",
             "DSPY_TEMPERATURE",
             "DSPY_MAX_TOKENS",
@@ -275,6 +276,17 @@ def build_agents() -> DemoAgents:
                 "USE_DSPY_CLARIFIER is set but DSPy is unavailable."
             ) from exc
         clarifier = DSPyClarifier()
+    visualizer = OpenAIVisualizer()
+    use_dspy_visualizer = os.getenv("USE_DSPY_VISUALIZER", "").lower() in {"1", "true", "yes"}
+    if use_dspy_visualizer:
+        try:
+            from dspy_visualizer import DSPyVisualizer
+        except ImportError as exc:
+            raise RuntimeError(
+                "USE_DSPY_VISUALIZER is set but DSPy is unavailable."
+            ) from exc
+        visualizer = DSPyVisualizer()
+
     return DemoAgents(
         clarifier=clarifier,
         planner=MockPlanner(),
@@ -282,5 +294,5 @@ def build_agents() -> DemoAgents:
         extractor=MockExtractor(),
         verifier=MockVerifier(),
         writer=MockWriter(),
-        visualizer=OpenAIVisualizer(),
+        visualizer=visualizer,
     )

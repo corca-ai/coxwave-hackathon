@@ -1,16 +1,11 @@
 from __future__ import annotations
 
-import os
 from dataclasses import replace
 from typing import Any, Optional
 
-from env_loader import load_env
 from main import ClarifyOutput
 
-try:
-    import dspy  # type: ignore
-except ImportError:  # pragma: no cover - optional dependency
-    dspy = None
+from dspy_utils import configure_dspy, dspy, require_dspy, resolve_dspy_settings
 
 
 def _coerce_list(value: Any) -> list[str]:
@@ -58,32 +53,14 @@ def _normalize_output(output: ClarifyOutput, query: str) -> ClarifyOutput:
     )
 
 
-def _configure_dspy(model_name: str, api_key: str, temperature: float, max_tokens: int) -> None:
-    if dspy is None:
-        raise RuntimeError("DSPy is not installed.")
-
-    lm_factory = None
-    if hasattr(dspy, "OpenAI"):
-        lm_factory = dspy.OpenAI
-    elif hasattr(dspy, "LM"):
-        lm_factory = dspy.LM
-
-    if lm_factory is None:
-        raise RuntimeError("DSPy OpenAI backend is not available.")
-
-    lm = lm_factory(
-        model=model_name,
-        api_key=api_key,
-        temperature=temperature,
-        max_tokens=max_tokens,
+def prediction_to_output(prediction: Any, query: str) -> ClarifyOutput:
+    output = ClarifyOutput(
+        is_clear_enough=bool(getattr(prediction, "is_clear_enough", False)),
+        clarifying_questions=_coerce_list(getattr(prediction, "clarifying_questions", None)),
+        interpreted_query=str(getattr(prediction, "interpreted_query", "") or ""),
+        assumptions=_coerce_list(getattr(prediction, "assumptions", None)),
     )
-
-    if hasattr(dspy, "settings"):
-        dspy.settings.configure(lm=lm)
-    elif hasattr(dspy, "configure"):
-        dspy.configure(lm=lm)
-    else:
-        raise RuntimeError("DSPy settings API is not available.")
+    return _normalize_output(output, query)
 
 
 if dspy is not None:
@@ -117,50 +94,15 @@ class DSPyClarifier:
         model: Optional[str] = None,
         temperature: Optional[float] = None,
         max_tokens: Optional[int] = None,
+        module: Optional[Any] = None,
+        configure: bool = True,
     ) -> None:
-        load_env(
-            keys=[
-                "OPENAI_API_KEY",
-                "OPENAI_MODEL",
-                "OPENAI_TEMPERATURE",
-                "DSPY_MODEL",
-                "DSPY_TEMPERATURE",
-                "DSPY_MAX_TOKENS",
-            ]
-        )
-        if dspy is None:
-            raise RuntimeError("DSPy is not installed.")
-
-        api_key = os.getenv("OPENAI_API_KEY")
-        if not api_key:
-            raise RuntimeError("OPENAI_API_KEY is not set.")
-
-        resolved_model = (
-            model
-            or os.getenv("DSPY_MODEL")
-            or os.getenv("OPENAI_MODEL")
-            or "gpt-4o-mini"
-        )
-
-        if temperature is None:
-            temp_env = os.getenv("DSPY_TEMPERATURE") or os.getenv("OPENAI_TEMPERATURE")
-            temperature = float(temp_env) if temp_env is not None else 0.2
-
-        if max_tokens is None:
-            max_env = os.getenv("DSPY_MAX_TOKENS")
-            max_tokens = int(max_env) if max_env is not None else 1024
-
-        _configure_dspy(resolved_model, api_key, temperature, max_tokens)
-        self._module = ClarifierModule()
+        require_dspy()
+        settings = resolve_dspy_settings(model=model, temperature=temperature, max_tokens=max_tokens)
+        if configure:
+            configure_dspy(settings)
+        self._module = module or ClarifierModule()
 
     def run(self, query: str) -> ClarifyOutput:
         prediction = self._module(query=query)
-        output = ClarifyOutput(
-            is_clear_enough=bool(getattr(prediction, "is_clear_enough", False)),
-            clarifying_questions=_coerce_list(
-                getattr(prediction, "clarifying_questions", None)
-            ),
-            interpreted_query=str(getattr(prediction, "interpreted_query", "") or ""),
-            assumptions=_coerce_list(getattr(prediction, "assumptions", None)),
-        )
-        return _normalize_output(output, query)
+        return prediction_to_output(prediction, query)
