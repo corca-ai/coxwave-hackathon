@@ -5,8 +5,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from agents.search.clients.arxiv_client import ArxivClient, ArxivSearchParams
-from agents.search.schemas import Candidate
+from agent.search.clients.arxiv_client import ArxivClient, ArxivSearchParams
+from agent.search.schemas import Candidate
 
 
 class MockAuthor:
@@ -188,8 +188,8 @@ class TestParseResult:
 class TestSearch:
     """Test the main search functionality."""
 
-    @patch("agents.search.clients.arxiv_client.arxiv.Client")
-    @patch("agents.search.clients.arxiv_client.arxiv.Search")
+    @patch("agent.search.clients.arxiv_client.arxiv.Client")
+    @patch("agent.search.clients.arxiv_client.arxiv.Search")
     def test_search_returns_candidates(self, mock_search_class, mock_client_class):
         """Search should return list of Candidate objects."""
         mock_result1 = create_mock_result(
@@ -227,8 +227,8 @@ class TestSearch:
         assert candidates[0].arxiv_id == "2301.00001"
         assert candidates[1].arxiv_id == "2301.00002"
 
-    @patch("agents.search.clients.arxiv_client.arxiv.Client")
-    @patch("agents.search.clients.arxiv_client.arxiv.Search")
+    @patch("agent.search.clients.arxiv_client.arxiv.Client")
+    @patch("agent.search.clients.arxiv_client.arxiv.Search")
     def test_search_skips_invalid_results(self, mock_search_class, mock_client_class):
         """Search should skip results that fail to parse."""
         mock_valid = create_mock_result(

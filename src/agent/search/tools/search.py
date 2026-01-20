@@ -2,10 +2,10 @@
 
 from agents import function_tool
 
-from agents.search.clients.arxiv_client import ArxivClient, ArxivSearchParams
-from agents.search.dedup import dedupe_candidates
-from agents.search.ranking import rank_candidates
-from agents.search.schemas import Candidate
+from agent.search.clients.arxiv_client import ArxivClient, ArxivSearchParams
+from agent.search.dedup import dedupe_candidates
+from agent.search.ranking import rank_candidates
+from agent.search.schemas import Candidate
 
 
 def _search_sources_impl(

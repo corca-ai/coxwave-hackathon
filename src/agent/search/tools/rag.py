@@ -4,8 +4,8 @@ from pathlib import Path
 
 from agents import function_tool
 
-from agents.search.clients.local_store import LocalStore
-from agents.search.schemas import Candidate, IngestPolicy, IngestSummary, PreviewSnippet
+from agent.search.clients.local_store import LocalStore
+from agent.search.schemas import Candidate, IngestPolicy, IngestSummary, PreviewSnippet
 
 _store: LocalStore | None = None
 

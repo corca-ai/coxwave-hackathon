@@ -2,7 +2,7 @@
 
 from datetime import datetime
 
-from agents.search.schemas import Candidate
+from agent.search.schemas import Candidate
 
 
 def calculate_score(candidate: Candidate, keywords: list[str]) -> float:

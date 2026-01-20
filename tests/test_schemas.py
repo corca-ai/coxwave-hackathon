@@ -3,7 +3,7 @@
 import pytest
 from pydantic import ValidationError
 
-from agents.search.schemas import (
+from agent.search.schemas import (
     Candidate,
     Constraints,
     IngestPolicy,

@@ -1,6 +1,6 @@
 """Deduplication logic for candidate papers."""
 
-from agents.search.schemas import Candidate
+from agent.search.schemas import Candidate
 
 
 def dedupe_candidates(

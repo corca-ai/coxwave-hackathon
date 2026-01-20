@@ -2,8 +2,8 @@
 
 import pytest
 
-from agents.search.dedup import dedupe_candidates
-from agents.search.schemas import Candidate
+from agent.search.dedup import dedupe_candidates
+from agent.search.schemas import Candidate
 
 
 def _make_candidate(arxiv_id: str, title: str = "Test Paper") -> Candidate:

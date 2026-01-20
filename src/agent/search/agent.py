@@ -1,8 +1,8 @@
 """SearchAgent definition for research paper discovery."""
 
 from agents import Agent
-from agents.search.tools import search_sources, rag_ingest_candidates, rag_preview
-from agents.search.schemas import SearchResult
+from agent.search.tools import search_sources, rag_ingest_candidates, rag_preview
+from agent.search.schemas import SearchResult
 
 SEARCH_AGENT_INSTRUCTIONS = """
 You are a research paper search agent. Search for academic papers based on the user's goal and save them.

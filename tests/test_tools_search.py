@@ -5,8 +5,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from agents.search.schemas import Candidate
-from agents.search.tools.search import _search_sources_impl, search_sources
+from agent.search.schemas import Candidate
+from agent.search.tools.search import _search_sources_impl, search_sources
 
 
 def create_mock_candidate(
@@ -31,7 +31,7 @@ def create_mock_candidate(
 class TestSearchSourcesArxiv:
     """Test search_sources with arxiv source."""
 
-    @patch("agents.search.tools.search.ArxivClient")
+    @patch("agent.search.tools.search.ArxivClient")
     def test_search_sources_arxiv(self, mock_arxiv_client_class):
         """search_sources should search arxiv and return candidates."""
         mock_candidates = [
@@ -59,7 +59,7 @@ class TestSearchSourcesArxiv:
         assert call_args.queries == ["deep learning"]
         assert call_args.max_results == 10
 
-    @patch("agents.search.tools.search.ArxivClient")
+    @patch("agent.search.tools.search.ArxivClient")
     def test_search_sources_with_categories(self, mock_arxiv_client_class):
         """search_sources should pass categories to arxiv client."""
         mock_client = MagicMock()
@@ -75,7 +75,7 @@ class TestSearchSourcesArxiv:
         call_args = mock_client.search.call_args[0][0]
         assert call_args.categories == ["cs.AI", "cs.CL"]
 
-    @patch("agents.search.tools.search.ArxivClient")
+    @patch("agent.search.tools.search.ArxivClient")
     def test_search_sources_with_time_range(self, mock_arxiv_client_class):
         """search_sources should pass time_range_years to arxiv client."""
         mock_client = MagicMock()
@@ -95,7 +95,7 @@ class TestSearchSourcesArxiv:
 class TestSearchSourcesUnknownSource:
     """Test search_sources with unknown source."""
 
-    @patch("agents.search.tools.search.ArxivClient")
+    @patch("agent.search.tools.search.ArxivClient")
     def test_search_sources_unknown_source(self, mock_arxiv_client_class):
         """search_sources should ignore unknown sources."""
         mock_client = MagicMock()
@@ -110,7 +110,7 @@ class TestSearchSourcesUnknownSource:
         assert result == []
         mock_client.search.assert_not_called()
 
-    @patch("agents.search.tools.search.ArxivClient")
+    @patch("agent.search.tools.search.ArxivClient")
     def test_search_sources_mixed_sources(self, mock_arxiv_client_class):
         """search_sources should process known sources and ignore unknown ones."""
         mock_candidates = [
@@ -134,7 +134,7 @@ class TestSearchSourcesUnknownSource:
 class TestSearchSourcesAppliesRanking:
     """Test that search_sources applies ranking and deduplication."""
 
-    @patch("agents.search.tools.search.ArxivClient")
+    @patch("agent.search.tools.search.ArxivClient")
     def test_search_sources_applies_ranking(self, mock_arxiv_client_class):
         """search_sources should rank candidates by keyword match and recency."""
         # Create candidates where ranking should reorder them
@@ -165,7 +165,7 @@ class TestSearchSourcesAppliesRanking:
         assert result[0].arxiv_id == "2401.00002"
         assert result[0].score > result[1].score
 
-    @patch("agents.search.tools.search.ArxivClient")
+    @patch("agent.search.tools.search.ArxivClient")
     def test_search_sources_deduplicates(self, mock_arxiv_client_class):
         """search_sources should remove duplicate candidates."""
         duplicate_candidate = create_mock_candidate("2401.00001", "Test Paper")
@@ -183,7 +183,7 @@ class TestSearchSourcesAppliesRanking:
         # Should deduplicate
         assert len(result) == 1
 
-    @patch("agents.search.tools.search.ArxivClient")
+    @patch("agent.search.tools.search.ArxivClient")
     def test_search_sources_respects_max_results(self, mock_arxiv_client_class):
         """search_sources should limit results to max_results."""
         mock_candidates = [
@@ -207,7 +207,7 @@ class TestSearchSourcesAppliesRanking:
 class TestSearchSourcesDefaultValues:
     """Test search_sources default parameter values."""
 
-    @patch("agents.search.tools.search.ArxivClient")
+    @patch("agent.search.tools.search.ArxivClient")
     def test_search_sources_default_values(self, mock_arxiv_client_class):
         """search_sources should use default values when not specified."""
         mock_client = MagicMock()

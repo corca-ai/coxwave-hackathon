@@ -5,7 +5,7 @@ from dataclasses import dataclass
 
 import arxiv
 
-from agents.search.schemas import Candidate
+from agent.search.schemas import Candidate
 
 
 @dataclass

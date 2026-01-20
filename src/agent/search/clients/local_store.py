@@ -3,7 +3,7 @@
 import json
 from pathlib import Path
 
-from agents.search.schemas import Candidate, SearchResult
+from agent.search.schemas import Candidate, SearchResult
 
 
 class LocalStore:

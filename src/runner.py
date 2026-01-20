@@ -3,10 +3,10 @@
 import click
 from pathlib import Path
 from agents import Runner
-from agents.search.agent import search_agent
-from agents.search.schemas import SearchRequest, Constraints
-from agents.search.tools.rag import set_artifacts_dir
-from agents.search.clients.local_store import LocalStore
+from agent.search.agent import search_agent
+from agent.search.schemas import SearchRequest, Constraints
+from agent.search.tools.rag import set_artifacts_dir
+from agent.search.clients.local_store import LocalStore
 
 
 @click.command()

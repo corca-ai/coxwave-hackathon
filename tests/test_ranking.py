@@ -4,8 +4,8 @@ import pytest
 from datetime import datetime
 from unittest.mock import patch
 
-from agents.search.ranking import calculate_score, rank_candidates
-from agents.search.schemas import Candidate
+from agent.search.ranking import calculate_score, rank_candidates
+from agent.search.schemas import Candidate
 
 
 def _make_candidate(

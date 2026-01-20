@@ -3,8 +3,8 @@
 import json
 import pytest
 
-from agents.search.schemas import Candidate, IngestPolicy, IngestSummary, PreviewSnippet
-from agents.search.tools.rag import (
+from agent.search.schemas import Candidate, IngestPolicy, IngestSummary, PreviewSnippet
+from agent.search.tools.rag import (
     _rag_ingest_candidates_impl,
     _rag_preview_impl,
     rag_ingest_candidates,

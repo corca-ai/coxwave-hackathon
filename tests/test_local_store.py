@@ -3,8 +3,8 @@
 import json
 import pytest
 
-from agents.search.clients.local_store import LocalStore
-from agents.search.schemas import (
+from agent.search.clients.local_store import LocalStore
+from agent.search.schemas import (
     Candidate,
     IngestSummary,
     QueryPlan,
