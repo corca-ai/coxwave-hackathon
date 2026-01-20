@@ -11,6 +11,7 @@ from agents import Agent, AgentOutputSchema, ItemHelpers, ModelSettings, Runner
 from openai.types.responses import ResponseTextDeltaEvent
 
 from stream_events import StreamEvent, StreamEventTypes
+from guardrails import INPUT_GUARDRAILS, OUTPUT_GUARDRAILS
 
 from main import (
     ClarifyOutput,
@@ -115,6 +116,7 @@ class OpenAIClarifier:
                 "Always return interpreted_query and assumptions (can be empty list). "
                 "Keep questions short and concrete."
             ),
+            input_guardrails=INPUT_GUARDRAILS,
         )
 
     def run(self, query: str) -> ClarifyOutput:
@@ -1046,6 +1048,7 @@ class OpenAIVisualizer:
                 "key_findings->bullets.items, limitations->callout.items, citations->list.items. "
                 "Keep props simple and avoid markdown."
             ),
+            output_guardrails=OUTPUT_GUARDRAILS,
         )
 
     def run(self, context: str) -> VisualOutput:
