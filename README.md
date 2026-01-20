@@ -10,6 +10,10 @@ python3 main.py --mock --query "Which techniques improve long-context reliabilit
 ```
 
 실제 에이전트 연결 시 `agents_impl.py`에 `build_agents()` 구현이 필요하다.
+Clarifier 단독 실행:
+```bash
+python3 clarifier_cli.py --query "Ambiguous short query"
+```
 
 ## 문제 정의
 
@@ -54,6 +58,7 @@ python3 main.py --mock --query "Which techniques improve long-context reliabilit
 - **Evidence sufficiency**: Verifier가 `is_enough = true` 및 supported claim ≥2개(각각 `source_id`+evidence 포함)
 - **Report completeness**: executive summary, key findings ≥3, citations가 sources와 정합
 - **Observability**: 모든 단계 JSON 출력, 데모 환경에서 질의당 3분 내 완료
+- **Automated E2E**: mock 모드 end-to-end 테스트가 무인으로 통과
 
 ## 조건 충족 여부
 
@@ -119,12 +124,25 @@ python3 main.py --mock --query "Which techniques improve long-context reliabilit
 ## 설치 및 실행
 
 ```bash
-# Mock 실행 (외부 의존성 없음)
+# 의존성 설치 (Clarifier 실사용 시 필요)
+pip install -r requirements.txt
+
+# API 키 설정 (환경변수 또는 .env 파일)
+export OPENAI_API_KEY=sk-...
+
+# Mock 실행 (API 키 불필요)
 python3 main.py --mock --query "Your research question"
 
 # 실제 에이전트 연결 후 실행
 python3 main.py --query "Your research question"
+
+# Clarifier 단독 실행
+python3 clarifier_cli.py --query "Your research question"
 ```
+
+`.env` 파일에 `OPENAI_API_KEY`를 넣어두면 자동으로 로드된다.
+Clarifier 반복 횟수는 `DEMO_MAX_CLARIFY_ROUNDS`로 지정하고, `--clarify-rounds`로 오버라이드할 수 있다. 기본값은 2이다.
+각 단계 입력 payload는 기본으로 출력되며, 추가 설정 없이도 전달 경로를 확인할 수 있다.
 
 ### agents_impl.py 인터페이스
 
@@ -147,6 +165,31 @@ def build_agents() -> DemoAgents:
 - [problem-1pager-demo.md](./plans/002-demo/problem-1pager.md) - 데모 성공 기준/측정
 - [retrospective.md](./retrospective.md) - 기존 시스템 구축 회고
 - [kg2 스킬 문서](../.claude/skills/kg2/SKILL.md) - 그래프 운영 규칙/스키마 정본
+
+## 테스트
+
+현재 테스트 suite는 **데모 E2E 테스트 + 각 에이전트 단위 테스트**로 구성한다.
+
+```bash
+# OPENAI_API_KEY가 없으면 자동으로 skip
+python3 -m unittest tests/test_clarifier.py
+
+# Demo E2E (mock)
+python3 -m unittest tests/test_demo_e2e.py
+```
+
+### 수동 테스트
+
+```bash
+# Clarifier 단독 확인
+python3 clarifier_cli.py --query "AI alignment"
+
+# 데모 시나리오 전체 (mock)
+python3 main.py --mock --query "Investigate RAG and hallucination in legal QA"
+```
+
+테스트 실행 로그는 `tests/_artifacts/`에 저장된다.
+E2E 테스트는 콘솔에도 전체 로그를 출력한다.
 
 ## 향후 계획
 
