@@ -1,10 +1,14 @@
 import json
-import click
+import os
 from pathlib import Path
+
+import click
 from agents import Runner
+
 from agent.verify.agent import verifier_agent
 from agent.verify.schemas import VerifierRequest, ExtractorResult
 from agent.verify.tools.rag import set_artifacts_dir
+from env_loader import load_env
 
 
 @click.command()
@@ -22,13 +26,28 @@ def verify(
 ):
     """Verifier Agent 실행: Extractor 결과 검증"""
 
+    load_env(keys=["OPENAI_API_KEY", "OPENAI_MODEL", "OPENAI_TEMPERATURE"])
+    if not os.getenv("OPENAI_API_KEY"):
+        click.echo("OPENAI_API_KEY is not set.")
+        raise SystemExit(1)
+
     # 아티팩트 디렉토리 설정
     artifacts_path = Path(artifacts_dir)
     set_artifacts_dir(artifacts_path)
 
     # Extractor 결과 로드
-    with open(extractor_result, encoding="utf-8") as f:
-        extractor_data = json.load(f)
+    try:
+        with open(extractor_result, encoding="utf-8") as f:
+            extractor_data = json.load(f)
+    except FileNotFoundError:
+        click.echo(f"Extractor result not found: {extractor_result}")
+        raise SystemExit(1)
+    except json.JSONDecodeError as exc:
+        click.echo(f"Extractor result must be JSON: {exc}")
+        raise SystemExit(1)
+    except OSError as exc:
+        click.echo(f"Failed to read extractor result: {exc}")
+        raise SystemExit(1)
 
     request = VerifierRequest(
         goal=goal,
@@ -38,6 +57,8 @@ def verify(
 
     click.echo(f"Verifying: {goal}")
     click.echo(f"Claims: {len(request.extractor_result.claims)}")
+    click.echo("Verifier input:")
+    click.echo(json.dumps(request.model_dump(), indent=2, ensure_ascii=True))
 
     # Agent 실행 - JSON을 user message로 전달
     result = Runner.run_sync(verifier_agent, request.model_dump_json())
@@ -50,6 +71,8 @@ def verify(
     click.echo(f"Unsupported Ratio: {output_data['metrics']['unsupported_ratio']:.2%}")
     click.echo(f"Concept Coverage: {output_data['metrics']['concept_coverage']:.2%}")
     click.echo(f"Conflicts: {output_data['metrics']['conflicts_count']}")
+    click.echo("\nVerifier output:")
+    click.echo(json.dumps(output_data, indent=2, ensure_ascii=True))
 
     if not output_data['quality_gate']['passed']:
         click.echo(f"\nReasons: {output_data['quality_gate']['reasons']}")
