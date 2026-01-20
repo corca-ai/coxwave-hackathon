@@ -11,6 +11,7 @@ from main import (
     ClarifyOutput,
     DemoAgents,
     MockExtractor,
+    MockOrchestrator,
     MockPlanner,
     MockSearcher,
     MockVerifier,
@@ -257,12 +258,25 @@ def _normalize_visual_output(output: VisualOutput, report: dict[str, Any]) -> Vi
 
 
 def build_agents() -> DemoAgents:
+    planner = MockPlanner()
+    searcher = MockSearcher()
+    extractor = MockExtractor()
+    verifier = MockVerifier()
+    writer = MockWriter()
+
     return DemoAgents(
         clarifier=OpenAIClarifier(),
-        planner=MockPlanner(),
-        searcher=MockSearcher(),
-        extractor=MockExtractor(),
-        verifier=MockVerifier(),
-        writer=MockWriter(),
+        planner=planner,
+        searcher=searcher,
+        extractor=extractor,
+        verifier=verifier,
+        writer=writer,
         visualizer=OpenAIVisualizer(),
+        orchestrator=MockOrchestrator(
+            planner=planner,
+            searcher=searcher,
+            extractor=extractor,
+            verifier=verifier,
+            writer=writer,
+        ),
     )
