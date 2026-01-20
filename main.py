@@ -5,9 +5,10 @@ import json
 import os
 import sys
 from dataclasses import asdict, dataclass, field, is_dataclass
-from typing import List, Optional, Protocol
+from typing import AsyncGenerator, List, Optional, Protocol
 
 from env_loader import load_env
+from stream_events import StreamEvent, StreamEventTypes
 
 @dataclass
 class ClarifyOutput:
@@ -503,6 +504,237 @@ class MockOrchestrator:
             report=report_out,
             loops_used=loops_used,
             plan_approved=True,
+        )
+
+    async def run_stream(
+        self, clarify_context: str, config: OrchestratorConfig
+    ) -> AsyncGenerator[StreamEvent, None]:
+        """Streaming version of run() that yields events for real-time updates."""
+        seq = 0
+
+        yield StreamEvent(
+            type=StreamEventTypes.AGENT_START,
+            payload={"config": asdict(config)},
+            agent="orchestrator",
+            sequence=seq,
+        )
+        seq += 1
+
+        # === PLAN PHASE ===
+        plan_out = self.planner.run(clarify_context)
+        self._log("Plan", "Plan output", plan_out)
+
+        yield StreamEvent(
+            type="plan_complete",
+            payload={"plan": asdict(plan_out)},
+            agent="orchestrator",
+            stage="plan",
+            sequence=seq,
+        )
+        seq += 1
+
+        # === STATE ACCUMULATION ===
+        accumulated_sources: List[Source] = []
+        accumulated_verdicts: List[Verification] = []
+        loops_used = 0
+
+        clarifier_data = json.loads(clarify_context)
+        search_context = json.dumps({"plan": asdict(plan_out), "clarifier": clarifier_data})
+
+        search_out: Optional[SearchOutput] = None
+        extract_out: Optional[ExtractOutput] = None
+        verify_out: Optional[VerifyOutput] = None
+
+        next_step = "search"
+
+        for loop_idx in range(config.max_loops):
+            loops_used = loop_idx + 1
+
+            yield StreamEvent(
+                type=StreamEventTypes.LOOP_START,
+                payload={"loop": loops_used, "max_loops": config.max_loops},
+                agent="orchestrator",
+                sequence=seq,
+            )
+            seq += 1
+
+            # === SEARCH ===
+            if next_step in ("search", "search_expand", "search_more_papers"):
+                if hasattr(self.searcher, "run_stream"):
+                    async for event in self.searcher.run_stream(search_context):
+                        event.sequence = seq
+                        yield event
+                        seq += 1
+                        if event.type == StreamEventTypes.AGENT_COMPLETE:
+                            search_out = SearchOutput(**event.payload.get("output", {}))
+                else:
+                    search_out = self.searcher.run(search_context)
+                    yield StreamEvent(
+                        type=StreamEventTypes.AGENT_COMPLETE,
+                        payload={"output": asdict(search_out)},
+                        agent="searcher",
+                        stage="search",
+                        sequence=seq,
+                    )
+                    seq += 1
+
+                if search_out:
+                    existing_ids = {s.source_id for s in accumulated_sources}
+                    for source in search_out.sources:
+                        if source.source_id not in existing_ids:
+                            accumulated_sources.append(source)
+                            existing_ids.add(source.source_id)
+
+            # === EXTRACT ===
+            if next_step in ("search", "search_expand", "search_more_papers", "reextract"):
+                extract_input = SearchOutput(
+                    refined_query=search_out.refined_query if search_out else "",
+                    sources=accumulated_sources,
+                )
+                extract_context = json.dumps(asdict(extract_input))
+
+                if hasattr(self.extractor, "run_stream"):
+                    async for event in self.extractor.run_stream(extract_context):
+                        event.sequence = seq
+                        yield event
+                        seq += 1
+                        if event.type == StreamEventTypes.AGENT_COMPLETE:
+                            output_data = event.payload.get("output", {})
+                            extract_out = ExtractOutput(
+                                claims=[Claim(**c) for c in output_data.get("claims", [])],
+                                gaps=output_data.get("gaps", []),
+                            )
+                else:
+                    extract_out = self.extractor.run(extract_context)
+                    yield StreamEvent(
+                        type=StreamEventTypes.AGENT_COMPLETE,
+                        payload={"output": asdict(extract_out)},
+                        agent="extractor",
+                        stage="extract",
+                        sequence=seq,
+                    )
+                    seq += 1
+
+            # === VERIFY ===
+            if extract_out:
+                verify_context = json.dumps(asdict(extract_out))
+
+                if hasattr(self.verifier, "run_stream"):
+                    async for event in self.verifier.run_stream(verify_context):
+                        event.sequence = seq
+                        yield event
+                        seq += 1
+                        if event.type == StreamEventTypes.AGENT_COMPLETE:
+                            output_data = event.payload.get("output", {})
+                            verify_out = VerifyOutput(
+                                verdicts=[Verification(**v) for v in output_data.get("verdicts", [])],
+                                is_enough=output_data.get("is_enough", False),
+                                next_search_queries=output_data.get("next_search_queries", []),
+                                next_actions=[
+                                    NextAction(**a) for a in output_data.get("next_actions", [])
+                                ],
+                            )
+                else:
+                    verify_out = self.verifier.run(verify_context)
+                    yield StreamEvent(
+                        type=StreamEventTypes.AGENT_COMPLETE,
+                        payload={"output": asdict(verify_out)},
+                        agent="verifier",
+                        stage="verify",
+                        sequence=seq,
+                    )
+                    seq += 1
+
+                for verdict in verify_out.verdicts:
+                    if verdict.verdict.lower() in ("supported", "weak"):
+                        if not any(v.claim == verdict.claim for v in accumulated_verdicts):
+                            accumulated_verdicts.append(verdict)
+
+            yield StreamEvent(
+                type=StreamEventTypes.LOOP_COMPLETE,
+                payload={
+                    "loop": loops_used,
+                    "accumulated_sources": len(accumulated_sources),
+                    "accumulated_verdicts": len(accumulated_verdicts),
+                },
+                agent="orchestrator",
+                sequence=seq,
+            )
+            seq += 1
+
+            # === CHECK QUALITY GATE ===
+            if verify_out and verify_out.is_enough:
+                break
+
+            # === ACTION-BASED ROUTING ===
+            primary_action = self._get_primary_action(verify_out) if verify_out else None
+
+            if primary_action:
+                action_type = primary_action.action_type
+
+                if action_type == "stop":
+                    break
+                elif action_type == "reextract":
+                    next_step = "reextract"
+                    continue
+                elif action_type in ("search_expand", "search_more_papers"):
+                    next_step = action_type
+                    search_context = json.dumps({
+                        "plan": asdict(plan_out),
+                        "clarifier": clarifier_data,
+                        "previous_sources": [asdict(s) for s in accumulated_sources[-5:]],
+                        "action_type": action_type,
+                        "target_concepts": primary_action.target_concepts,
+                        "suggested_queries": primary_action.suggested_queries,
+                        "next_queries": verify_out.next_search_queries if verify_out else [],
+                    })
+                    continue
+
+            if verify_out and verify_out.next_search_queries:
+                next_step = "search"
+                search_context = json.dumps({
+                    "plan": asdict(plan_out),
+                    "clarifier": clarifier_data,
+                    "previous_sources": [asdict(s) for s in accumulated_sources[-5:]],
+                    "next_queries": verify_out.next_search_queries,
+                })
+            else:
+                next_step = "search"
+
+        # === WRITE PHASE ===
+        supported = [v for v in accumulated_verdicts if v.verdict.lower() == "supported"]
+        weak = [v for v in accumulated_verdicts if v.verdict.lower() == "weak"]
+
+        writer_context = json.dumps({
+            "clarifier": clarifier_data,
+            "plan": asdict(plan_out),
+            "supported_claims": [asdict(v) for v in supported],
+            "weak_claims": [asdict(v) for v in weak],
+            "total_sources": len(accumulated_sources),
+            "loops_used": loops_used,
+        })
+        report_out = self.writer.run(writer_context)
+
+        yield StreamEvent(
+            type="write_complete",
+            payload={"report": asdict(report_out)},
+            agent="orchestrator",
+            stage="write",
+            sequence=seq,
+        )
+        seq += 1
+
+        final_output = OrchestratorOutput(
+            report=report_out,
+            loops_used=loops_used,
+            plan_approved=True,
+        )
+
+        yield StreamEvent(
+            type=StreamEventTypes.AGENT_COMPLETE,
+            payload={"output": asdict(final_output)},
+            agent="orchestrator",
+            sequence=seq,
         )
 
 
