@@ -21,6 +21,7 @@
 - `dspy_integration/optimize_cli.py`에 deterministic shuffle/seed를 추가해 평가 편향을 줄인다.
 - DSPy 실행 경로(모듈 호출/CLI 도움말)와 필요 시 에이전트별 설정 분리를 정리한다.
 - README에 DSPy 결과 요약/리포트 템플릿 방향을 반영한다.
+- DSPy 전환 작업은 에이전트별로 병렬 추진(spawn 기반 분할)한다.
 
 ### Non-goals
 - 대규모 데이터셋 구축(10–20 샘플 규모를 넘는 장기 수집)
@@ -34,13 +35,14 @@
 - 반복 루프는 상한을 두며 env 기본 + CLI override 가능해야 한다.
 - 실행/테스트는 `.env`를 기본 로드한다.
 - `*_req_req.md` 등 프롬프트 로그 파일은 유지한다.
+- 비용/빈도 상한은 기본 env 값(합리적 기본값)으로 설정하고 CLI로 오버라이드 가능하게 한다.
 
 ---
 
 ## 작업 범위 (Next Work)
 
 ### Immediate follow-ups
-- 전 에이전트 DSPy 전환 계획 수립(우선순위/의존성/스키마 정리).
+- 전 에이전트 DSPy 전환 계획 수립(병렬화 가능한 작업 묶음 정의).
 - Clarifier/Visualizer DSPy 최적화를 실제 API 키로 end-to-end 실행하고 `evals/_artifacts/`에 아티팩트를 저장.
 - 최적화 전/후 deltas 리뷰 후 점수 개선이 없거나 회귀 시 데이터셋/메트릭 보정.
 - `dspy_integration/optimize_cli.py`에 deterministic shuffle/seed 추가.
@@ -83,8 +85,8 @@
 
 ---
 
-## 오픈 질문 (인터뷰 필요)
-1. 전 에이전트 DSPy 전환 우선순위/병렬화 전략은 어떻게 할지?
-2. 실제 키 기반 실행 빈도/비용 상한은 어느 정도로 둘지?
-3. Visualizer 품질 기준: 어떤 메트릭이 “실패”로 간주되어야 하는지?
-4. README vs 별도 리포트 템플릿 중 어디에 결과를 정리할지?
+## 합의된 기본값 (현재 결정)
+1. 병렬화: 에이전트별 DSPy 전환/데이터셋/메트릭 작업을 spawn로 병렬 수행.
+2. 비용/빈도 상한: 기본 env 상한을 유지하되(예: rounds 2~3), CLI로 조정.
+3. Visualizer 품질 기준: required component/props 누락, 링크 형식 위반, 최소 아이템/문자수 미달을 실패로 간주.
+4. 결과 정리: README와 별도로 `docs/` 하위 리포트 템플릿에 기록.
