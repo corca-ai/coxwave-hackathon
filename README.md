@@ -4,13 +4,17 @@
 
 ## 데모
 
-CLI 데모 (Mock):
+CLI 데모 (Mock / Live):
 
 ```bash
+# Mock 모드
 python3 main.py --mock --query "Which techniques improve long-context reliability?"
+
+# 실제 에이전트 모드 (OPENAI_API_KEY 필요)
+python3 main.py --query "Which techniques improve long-context reliability?"
 ```
 
-실제 에이전트 연결 시 `agents_impl.py`의 `build_agents()`에서 각 에이전트를 연결해야 한다.
+실제 에이전트 연결은 `agents_impl.py`의 `build_agents()`에서 구성되어 있다.
 
 ### Clarifier 단독 실행
 
@@ -113,23 +117,24 @@ Vercel 배포 시 Root Directory는 `frontend/`, Build Command는 `npm run build
 
 ## 조건 충족 여부
 
-- [x] OpenAI API 사용 + DSPy 지원 (전 에이전트)
+- [x] OpenAI API 사용 (Clarifier/Planner/Search/Extract/Verify/Writer/Visualizer: Agent SDK)
 - [x] 전 에이전트 DSPy 전환 (USE_DSPY_ALL/개별 플래그)
-- [ ] 멀티에이전트 구현 (E2E 오케스트레이션은 mock 기반)
-- [x] 실행 가능한 데모 (Mock)
+- [x] 멀티에이전트 구현 (상태 기반 오케스트레이션, mock 모드 지원)
+- [x] 실행 가능한 데모 (Mock + Live)
 - [x] Frontend UI (Graph/Trace/Streaming)
 
 ## 에이전트 구현 현황
 
 | Agent | Status | Notes |
 | --- | --- | --- |
-| Clarifier | Implemented (OpenAI Agents SDK + DSPy) | 단독 CLI + 단위 테스트 + DSPy CLI |
-| Planner | Implemented (DSPy + OpenAI wrapper) | DSPy CLI + eval dataset |
-| Searcher | Implemented (DSPy + search tools) | DSPy CLI + eval dataset |
-| Extractor | Implemented (OpenAI Agents SDK + DSPy) | 단독 CLI + eval dataset |
-| Verifier | Implemented (Standalone CLI + DSPy) | 단독 CLI + eval dataset |
-| Writer | Implemented (OpenAI Agents SDK + DSPy) | 단독 CLI + eval dataset |
-| Visualizer | Implemented (OpenAI Agents SDK + DSPy) | 단독 CLI + eval dataset |
+| Orchestrator | Implemented (state-based) | `main.py`의 Orchestrator loop (live 모드에서 실제 에이전트 호출) |
+| Clarifier | Implemented (Agent SDK + DSPy) | 단독 CLI + 단위 테스트 + DSPy CLI |
+| Planner | Implemented (Agent SDK + DSPy) | `src/agent/plan` + DSPy CLI |
+| Searcher | Implemented (Agent SDK + DSPy) | `src/agent/search` + DSPy CLI |
+| Extractor | Implemented (Agent SDK + DSPy) | `src/agent/extract/runner.py` + DSPy CLI |
+| Verifier | Implemented (Standalone CLI + DSPy) | `src/agent/verify/runner.py` + DSPy CLI |
+| Writer | Implemented (Agent SDK + DSPy) | 단독 CLI + DSPy CLI |
+| Visualizer | Implemented (Agent SDK + DSPy) | 단독 CLI + DSPy CLI |
 
 ## 아키텍처
 
@@ -179,10 +184,10 @@ Vercel 배포 시 Root Directory는 `frontend/`, Build Command는 `npm run build
 
 ## 기술 스택
 
-- **LLM**: OpenAI GPT-5.2 / GPT-5-mini
-- **에이전트 프레임워크**: [OpenAI Agent SDK (Python)](https://github.com/openai/openai-agents-python/) (optional path)
+- **LLM**: OpenAI GPT-4o-mini / GPT-5-mini (에이전트별 기본값, `OPENAI_MODEL`로 일부 구성 가능)
+- **에이전트 프레임워크**: [OpenAI Agent SDK (Python)](https://github.com/openai/openai-agents-python/)
 - **DSPy**: 전 에이전트 모듈 + metric 기반 자동 최적화
-- **지식 그래프**: GraphDB (OWL 추론 + SHACL 검증)
+- **지식 그래프**: GraphDB (Docker 설정 포함, `kg_query`는 v1 mock)
 - **스키마**: RDF/OWL + SPARQL
 - **Frontend**: Next.js App Router + @xyflow/react (React Flow)
 
@@ -218,6 +223,15 @@ npm run dev
 
 # Writer 단독 실행
 python3 writer_cli.py --input path/to/writer_input.json
+
+# DSPy 단독 실행
+python3 -m dspy_integration.clarifier_cli --query "AI alignment"
+python3 -m dspy_integration.planner_cli --input path/to/clarifier_context.json
+python3 -m dspy_integration.searcher_cli --input path/to/search_context.json
+python3 -m dspy_integration.extractor_cli --input path/to/search_output.json
+python3 -m dspy_integration.verifier_cli --input path/to/extract_output.json
+python3 -m dspy_integration.writer_cli --input path/to/writer_input.json
+python3 -m dspy_integration.visualizer_cli --report-json '{"title":"Demo","executive_summary":"...","key_findings":["A"],"limitations":["L"],"citations":["https://example.com"]}'
 ```
 
 `.env` 파일에 `OPENAI_API_KEY`를 넣어두면 자동으로 로드된다.
@@ -251,7 +265,7 @@ def build_agents() -> DemoAgents:
 - [run-bundle.schema.json](./docs/schemas/run-bundle.schema.json) - Run Bundle 스키마
 - [stream-events.schema.json](./docs/schemas/stream-events.schema.json) - 스트리밍 이벤트 스키마
 - [retrospective.md](./docs/retrospective.md) - 기존 시스템 구축 회고
-- [kg2 스킬 문서](../.claude/skills/kg2/SKILL.md) - 그래프 운영 규칙/스키마 정본
+- [kg2 스킬 문서](./.claude/skills/kg2/SKILL.md) - 그래프 운영 규칙/스키마 정본
 - [Search Agent 설계 문서](docs/plans/2026-01-20-search-agent-design.md)
 - [Search Agent 구현 계획](docs/plans/2026-01-20-search-agent-impl.md)
 
@@ -319,13 +333,6 @@ python3 main.py --mock --query "Investigate RAG and hallucination in legal QA"
 
 # DSPy Clarifier 단독 확인 (DSPy 설치 필요)
 python3 -m dspy_integration.clarifier_cli --query "AI alignment"
-
-# DSPy Planner/Searcher/Extractor/Verifier/Writer 단독 확인
-python3 -m dspy_integration.planner_cli --input path/to/clarifier_context.json
-python3 -m dspy_integration.searcher_cli --input path/to/search_context.json
-python3 -m dspy_integration.extractor_cli --input path/to/search_output.json
-python3 -m dspy_integration.verifier_cli --input path/to/extract_output.json
-python3 -m dspy_integration.writer_cli --input path/to/writer_input.json
 ```
 
 테스트 실행 로그는 `tests/_artifacts/`에 저장된다.
@@ -355,7 +362,7 @@ python3 evals_cli.py --agent clarifier --engine dspy --dataset evals/datasets/cl
 ## 향후 계획
 
 - [ ] 지식 그래프 스키마 확정 및 초기 데이터 수집
-- [x] DSPy 기반 추출/검증 파이프라인 구축
+- [ ] DSPy 기반 추출/검증 파이프라인 구축
 - [ ] Agent SDK로 워크플로우 통합
 - [x] UI 구현 및 Observability 추가 (Graph/Trace/Streaming, local demo)
 - [ ] Vercel 배포 (Frontend)
@@ -368,3 +375,33 @@ python3 evals_cli.py --agent clarifier --engine dspy --dataset evals/datasets/cl
 |      |      |
 |      |      |
 |      |      |
+
+
+## 서버 띄우기
+
+### 의존성 설치
+```bash
+pip install fastapi uvicorn[standard] sse-starlette
+```
+
+### 서버 실행
+```bash
+python server.py
+```
+또는
+```bash
+uvicorn server:app --reload --port 8000
+```
+
+### 프론트엔드 연동
+프론트에서 서버를 직접 호출하려면 `NEXT_PUBLIC_API_BASE`를 설정한다.
+
+```bash
+# frontend/.env 또는 환경변수로 지정
+NEXT_PUBLIC_API_BASE=http://localhost:8000
+```
+
+간단 스모크 테스트:
+```bash
+python scripts/server_smoke.py
+```

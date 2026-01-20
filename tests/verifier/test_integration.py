@@ -8,9 +8,11 @@ import json
 import os
 from pathlib import Path
 
+from env_loader import load_env
 
 @pytest.fixture
 def has_api_key():
+    load_env(keys=["OPENAI_API_KEY"])
     return bool(os.getenv("OPENAI_API_KEY"))
 
 
