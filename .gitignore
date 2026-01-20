@@ -82,3 +82,10 @@ dist/
 # Editor
 .vscode/
 .idea/
+
+# Artifacts (Search Agent outputs)
+artifacts/
+
+# Docker volumes (local)
+docker/graphdb/data/
+docker/qdrant/data/

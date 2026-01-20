@@ -1,0 +1,49 @@
+# GraphDB Repository Configuration for Research Navigator
+# This file defines the 'researcher' repository settings
+
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix rep: <http://www.openrdf.org/config/repository#> .
+@prefix sr: <http://www.openrdf.org/config/repository/sail#> .
+@prefix sail: <http://www.openrdf.org/config/sail#> .
+@prefix graphdb: <http://www.ontotext.com/config/graphdb#> .
+
+[] a rep:Repository ;
+    rep:repositoryID "researcher" ;
+    rdfs:label "Research Navigator Knowledge Graph" ;
+    rep:repositoryImpl [
+        rep:repositoryType "graphdb:SailRepository" ;
+        sr:sailImpl [
+            sail:sailType "graphdb:Sail" ;
+
+            # Ruleset: OWL-Horst optimized for reasoning
+            graphdb:ruleset "rdfsplus-optimized" ;
+
+            # Enable OWL sameAs optimization
+            graphdb:enable-sameAs true ;
+
+            # Entity index size
+            graphdb:entity-index-size "10000000" ;
+
+            # Enable context index for named graphs
+            graphdb:enable-context-index true ;
+
+            # Enable predicate list for faster queries
+            graphdb:enable-predicate-list true ;
+
+            # Inference and consistency checking
+            graphdb:check-for-inconsistencies true ;
+            graphdb:disable-sameAs false ;
+
+            # Query timeout (ms) - 0 = no timeout
+            graphdb:query-timeout "0" ;
+
+            # Query limit results - 0 = no limit
+            graphdb:query-limit-results "0" ;
+
+            # Throw exception on query timeout
+            graphdb:throw-QueryEvaluationException-on-timeout false ;
+
+            # Read-only mode
+            graphdb:read-only false ;
+        ]
+    ] .
