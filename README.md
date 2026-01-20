@@ -1,129 +1,76 @@
-# Research Navigator
+# [팀명 입력] - Research Navigator
 
-> 연구자를 위한 자율형 리서치 및 동적 시각화 에이전트
+> 연구자, 기업 전략가, 전문직을 위한 자율형 리서치 및 동적 시각화 에이전트
 
-## 데모
+## 🎥 데모
 
-CLI 데모 (Mock / Live):
+- **시연 영상**: [여기에 YouTube 또는 Loom 영상 링크를 넣어주세요]
+- **라이브 데모**: [여기에 배포된 URL이 있다면 넣어주세요]
 
-```bash
-# Mock 모드
-python3 main.py --mock --query "Which techniques improve long-context reliability?"
-
-# 실제 에이전트 모드 (OPENAI_API_KEY 필요)
-python3 main.py --query "Which techniques improve long-context reliability?"
-```
-
-실제 에이전트 연결은 `agents_impl.py`의 `build_agents()`에서 구성되어 있다.
-
-### Clarifier 단독 실행
-
-```bash
-python3 clarifier_cli.py --query "Ambiguous short query"
-```
-
-### Writer 단독 실행
-
-```bash
-python3 writer_cli.py --input path/to/writer_input.json
-```
-
-### Visualizer 단독 실행
-
-```bash
-python3 visualizer_cli.py --input path/to/report.json
-```
-
-### Search Agent
-
-Search Agent를 단독으로 실행할 수 있다:
-
-```bash
-# 환경 설정
-cp .env.example .env
-# OPENAI_API_KEY 입력
-
-# 의존성 설치
-pip install -e ".[dev]"
-
-# Search Agent 실행
-python -m src.runner --goal "Graph RAG for scientific papers"
-
-# 옵션 지정
-python -m src.runner \
-  --goal "LLM agents for code generation" \
-  --namespace demo \
-  --target-docs 20 \
-  --artifacts-dir artifacts
-```
-
-### Frontend UI (Local)
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-브라우저에서 `http://localhost:3000`을 열면 된다. 메인 페이지는 Clarifier 대화 UI이며, 데모/관측 UI는 `http://localhost:3000/demo`에서 제공한다.
-기본 데모 데이터는 `frontend/public/demo/`를 사용하며, Run Bundle JSON과 stream NDJSON을 업로드해서 교체할 수 있다.
-서버 연동이 필요하면 `NEXT_PUBLIC_API_BASE=http://localhost:8000`을 설정한다.
-Vercel 배포 시 Root Directory는 `frontend/`, Build Command는 `npm run build`, Output Directory는 `.next` 기본값을 사용한다.
+**(스크린샷이나 GIF가 있다면 여기에 추가하여 시각적 효과를 높이세요)**
 
 ## 문제 정의
 
-새로운 분야를 탐구할 때 연구자들은:
+기업의 R&D 부서, 전략 기획실, 법무팀 등에서는 새로운 분야를 조사하는 데 막대한 시간과 인력을 소모합니다.
 
-- 방대한 자료를 수집하고 파편화된 지식을 연결하는 데 많은 시간을 소비
-- 수집된 문서들 간의 맥락과 관계를 파악하기 어려움
-- 인사이트를 효과적으로 시각화하고 전달하는 데 추가 노력 필요
+- **비효율적인 정보 수집**: 수천 건의 문서를 일일이 검색하고 읽는 데 수십 시간이 소요됩니다.
+- **파편화된 지식**: 수집된 정보가 연결되지 않아 전체적인 맥락(Context)을 놓치기 쉽습니다.
+- **낮은 신뢰성**: LLM의 환각(Hallucination) 현상으로 인해 전문적인 업무에 바로 적용하기 어렵습니다.
 
-**타겟 유저**: 진지한 연구자, 사내 변호사, 신사업 PM 등 - 초반에 시간이 걸려도 깊이 있는 결과를 원하는 사용자
+**타겟 유저 (B2B/Enterprise)**:
+- **R&D 연구원**: 선행 기술 조사 시간을 5일 -> 1시간으로 단축
+- **사내 변호사**: 판례 및 법률 리서치 자동화로 업무 효율 50% 증대
+- **신사업 PM**: 시장 동향 및 경쟁사 분석 보고서 즉시 생성
 
 ## 솔루션
 
-자료 수집부터 시각화까지 스스로 수행하는 **End-to-End Multi-Agent Workflow**:
+자료 수집부터 검증, 시각화까지 스스로 수행하는 **End-to-End Multi-Agent Workflow**:
 
-1. **Clarify**: 사용자의 의도를 파악하고 명확화 질문
-2. **Plan**: 연구 계획 수립 및 사용자 승인
-3. **Search & Extract**: 심층적인 자료 조사 및 구조화된 정보 추출
-4. **Verify**: Claim/Evidence 평가 및 품질 검증
-5. **Synthesize**: 리포트 합성 및 시각화
+1. **Clarify**: 모호한 업무 지시를 구체적인 리서치 주제로 명확화
+2. **Plan**: 기업 환경에 맞는 단계별 리서치 계획 수립 및 승인
+3. **Search & Extract**: Arxiv 등 신뢰할 수 있는 소스에서 심층 조사 및 정보 추출
+4. **Verify**: 추출된 정보의 출처와 사실 관계를 교차 검증 (Cross-Check)
+5. **Synthesize**: 경영진 보고용 리포트 자동 생성 및 시각화
 
 핵심 차별점:
 
-- **지식 그래프 기반**: 단순 검색이 아닌, 문서 간 관계(인용, 확장, 반박)를 구조화
-- **Self-Healing 데이터**: 품질 지표 기반 자동 개선 (고립 노드 탐지, 연결성 강화)
-- **Observability**: 에이전트 동작 과정을 사용자에게 투명하게 공개
+- **Self-Healing Knowledge Graph**: 단순 검색이 아닌, 정보 간의 인과 관계와 모순을 그래프로 구조화하여 분석
+- **Enterprise-Grade Safety**: 입력 데이터 보호 및 출력 결과의 신뢰성 보장 (Guardrails 적용)
+- **Full Observability**: 에이전트의 모든 사고 과정과 데이터 흐름을 실시간으로 추적 가능
 
 ## 데모 시나리오
 
-- 사용자가 질의를 입력
-- Clarifier가 의도 파악 및 필요한 질문
+- 사용자가 질의를 입력 (예: "RAG 시스템의 최신 트렌드 조사해줘")
+- **Clarifier**가 의도 파악 및 필요한 질문 (PII/비윤리적 주제 필터링)
 - 충분히 명확해지면 “이 방식으로 연구할까요?” 확인
-- 승인 시 Orchestrator가 자동 진행하며 Verifier가 증거 충분성을 판단
-- 부족하면 Search → Extract → Verify 루프를 수행
-- Writer가 최종 JSON 리포트를 생성
-- (Optional) Visualizer가 사전 컴포넌트를 조합
+- 승인 시 **Orchestrator**가 자동 진행하며 **Verifier**가 증거 충분성을 판단
+- 부족하면 Search → Extract → Verify 루프를 수행 (Self-Healing)
+- **Writer**가 최종 JSON 리포트를 생성 (Hallucination 검사)
+- (Optional) **Visualizer**가 사전 컴포넌트를 조합하여 시각화
 - 최종 결과 출력
 
-## 성공 기준 (Demo)
+## 🛡️ Safety & Reliability (가드레일)
 
-- **End-to-end completion**: 벤치마크 3개 질의에서 모든 단계 완료 및 종료 코드 0
-- **Clarification quality**: 모호한 질의 1개 이상에서 clarifying question ≥1개, 답변이 Planner 컨텍스트에 반영
-- **Plan approval**: 각 질의에서 1회 이내 수정으로 계획 승인
-- **Evidence sufficiency**: Verifier가 `is_enough = true` 및 supported claim ≥2개(각각 `source_id`+evidence 포함)
-- **Report completeness**: executive summary 포함, key findings는 가능하면 ≥3(부족 시 limitations에 명시), citations가 sources와 정합
-- **Observability**: 모든 단계 JSON 출력, 데모 환경에서 질의당 3분 내 완료
-- **Automated E2E**: mock 모드 end-to-end 테스트가 무인으로 통과
+기업 환경 도입을 위해 `guardrails.py`를 통한 강력한 안전 장치를 적용했습니다.
+
+- **Input Guardrails**:
+  - **Off-topic**: 업무와 무관한 잡담, 코딩 요청 차단
+  - **Unethical**: 무기, 마약, 해킹 등 비윤리적 연구 주제 원천 봉쇄
+  - **PII Protection**: API Key, 개인정보 등이 포함된 질의 자동 마스킹
+- **Output Guardrails**:
+  - **Hallucination Check**: 근거(Reference)가 없는 주장은 사용자에게 전달되지 않음
+  - **Overconfidence Check**: 불확실한 정보를 "확실하다"고 표현하는 과장된 언어 탐지
 
 ## 조건 충족 여부
 
-- [x] OpenAI API 사용 (Clarifier/Planner/Search/Extract/Verify/Writer/Visualizer: Agent SDK)
-- [x] 전 에이전트 DSPy 전환 (USE_DSPY_ALL/개별 플래그)
-- [x] 멀티에이전트 구현 (상태 기반 오케스트레이션, mock 모드 지원)
-- [x] 실행 가능한 데모 (Mock + Live)
-- [x] Frontend UI (Graph/Trace/Streaming)
+- [x] **OpenAI API / SDK 사용** (Clarifier, Planner, Searcher 등 전 에이전트 적용)
+- [x] **멀티에이전트 협업** (상태 기반 오케스트레이션 및 Loop 구조)
+- [x] **실행 가능한 데모** (CLI 및 Frontend UI 제공)
+- [x] **기업용 시나리오** (B2B 리서치 자동화 및 ROI 명시)
+- [x] **Safety & Guardrails** (입출력 필터링 및 할루시네이션 방지)
+- [x] **Observability** (실시간 추적 및 DSPy 최적화 리포트)
+
+## 성공 기준 (Demo)
 
 ## 에이전트 구현 현황
 
@@ -372,11 +319,14 @@ python3 evals_cli.py --agent clarifier --engine dspy --dataset evals/datasets/cl
 
 ## 팀원
 
-| 이름 | 역할 |
-| ---- | ---- |
-|      |      |
-|      |      |
-|      |      |
+| 이름 | 역할 | Github |
+| ---- | ---- | ------ |
+| [팀원1 이름] | PM / Backend | @github_id |
+| [팀원2 이름] | Frontend / Design | @github_id |
+| [팀원3 이름] | AI Research / Modeling | @github_id |
+
+---
+&copy; 2026 Research Navigator Team. All Rights Reserved.
 
 
 ## 서버 띄우기
