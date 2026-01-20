@@ -2,6 +2,7 @@
 
 from agents import Agent
 from agent.plan.schemas import PlannerResult
+from shared.config import MODEL_HEAVY
 
 PLANNER_AGENT_INSTRUCTIONS = """
 You are a research planning agent. Create a structured research plan based on the user's goal.
@@ -84,6 +85,6 @@ Return PlannerResult JSON:
 plan_agent = Agent(
     name="PlannerAgent",
     instructions=PLANNER_AGENT_INSTRUCTIONS,
-    model="gpt-4o-mini",
+    model=MODEL_HEAVY,
     output_type=PlannerResult,
 )

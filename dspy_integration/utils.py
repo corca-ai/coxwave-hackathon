@@ -1,10 +1,16 @@
 from __future__ import annotations
 
 import os
+import sys
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Optional
 
+# Add parent to path for src imports
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
 from env_loader import load_env
+from src.shared.config import MODEL_HEAVY
 
 try:
     import dspy  # type: ignore
@@ -73,7 +79,7 @@ def resolve_dspy_settings(
         or _get_prefixed_env(agent_name, "MODEL")
         or os.getenv("DSPY_MODEL")
         or os.getenv("OPENAI_MODEL")
-        or "gpt-4o-mini"
+        or MODEL_HEAVY
     )
 
     if temperature is None:
