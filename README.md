@@ -362,7 +362,7 @@ python3 evals_cli.py --agent clarifier --engine dspy --dataset evals/datasets/cl
 ## 향후 계획
 
 - [ ] 지식 그래프 스키마 확정 및 초기 데이터 수집
-- [ ] DSPy 기반 추출/검증 파이프라인 구축
+- [x] DSPy 기반 추출/검증 파이프라인 구축
 - [ ] Agent SDK로 워크플로우 통합
 - [x] UI 구현 및 Observability 추가 (Graph/Trace/Streaming, local demo)
 - [ ] Vercel 배포 (Frontend)
