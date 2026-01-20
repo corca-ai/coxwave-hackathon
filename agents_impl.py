@@ -8,7 +8,6 @@ from pathlib import Path
 from typing import Any, AsyncGenerator, Optional
 
 from agents import Agent, AgentOutputSchema, ItemHelpers, ModelSettings, Runner
-from openai.types.responses import ResponseTextDeltaEvent
 
 from stream_events import StreamEvent, StreamEventTypes
 from guardrails import INPUT_GUARDRAILS, OUTPUT_GUARDRAILS
@@ -147,16 +146,8 @@ class OpenAIClarifier:
         try:
             result = Runner.run_streamed(self._agent, query)
             async for event in result.stream_events():
-                if event.type == "raw_response_event":
-                    if isinstance(event.data, ResponseTextDeltaEvent):
-                        yield StreamEvent(
-                            type=StreamEventTypes.TEXT_DELTA,
-                            payload={"delta": event.data.delta},
-                            agent="clarifier",
-                            sequence=seq,
-                        )
-                        seq += 1
-                elif event.type == "run_item_stream_event":
+                # Skip raw_response_event (text_delta) for cleaner event stream
+                if event.type == "run_item_stream_event":
                     if event.item.type == "tool_call_item":
                         yield StreamEvent(
                             type=StreamEventTypes.TOOL_CALL,
@@ -401,17 +392,8 @@ class OpenAISearcher:
         try:
             result = Runner.run_streamed(search_agent, request.model_dump_json())
             async for event in result.stream_events():
-                if event.type == "raw_response_event":
-                    if isinstance(event.data, ResponseTextDeltaEvent):
-                        yield StreamEvent(
-                            type=StreamEventTypes.TEXT_DELTA,
-                            payload={"delta": event.data.delta},
-                            agent="searcher",
-                            stage="search",
-                            sequence=seq,
-                        )
-                        seq += 1
-                elif event.type == "run_item_stream_event":
+                # Skip raw_response_event (text_delta) for cleaner event stream
+                if event.type == "run_item_stream_event":
                     if event.item.type == "tool_call_item":
                         yield StreamEvent(
                             type=StreamEventTypes.TOOL_CALL,
@@ -554,17 +536,8 @@ class OpenAIExtractor:
         try:
             result = Runner.run_streamed(extract_agent, request.model_dump_json())
             async for event in result.stream_events():
-                if event.type == "raw_response_event":
-                    if isinstance(event.data, ResponseTextDeltaEvent):
-                        yield StreamEvent(
-                            type=StreamEventTypes.TEXT_DELTA,
-                            payload={"delta": event.data.delta},
-                            agent="extractor",
-                            stage="extract",
-                            sequence=seq,
-                        )
-                        seq += 1
-                elif event.type == "run_item_stream_event":
+                # Skip raw_response_event (text_delta) for cleaner event stream
+                if event.type == "run_item_stream_event":
                     if event.item.type == "tool_call_item":
                         yield StreamEvent(
                             type=StreamEventTypes.TOOL_CALL,
@@ -743,17 +716,8 @@ class OpenAIVerifier:
         try:
             result = Runner.run_streamed(verifier_agent, request.model_dump_json())
             async for event in result.stream_events():
-                if event.type == "raw_response_event":
-                    if isinstance(event.data, ResponseTextDeltaEvent):
-                        yield StreamEvent(
-                            type=StreamEventTypes.TEXT_DELTA,
-                            payload={"delta": event.data.delta},
-                            agent="verifier",
-                            stage="verify",
-                            sequence=seq,
-                        )
-                        seq += 1
-                elif event.type == "run_item_stream_event":
+                # Skip raw_response_event (text_delta) for cleaner event stream
+                if event.type == "run_item_stream_event":
                     if event.item.type == "tool_call_item":
                         yield StreamEvent(
                             type=StreamEventTypes.TOOL_CALL,
@@ -1083,17 +1047,8 @@ class OpenAIVisualizer:
         try:
             result = Runner.run_streamed(self._agent, context)
             async for event in result.stream_events():
-                if event.type == "raw_response_event":
-                    if isinstance(event.data, ResponseTextDeltaEvent):
-                        yield StreamEvent(
-                            type=StreamEventTypes.TEXT_DELTA,
-                            payload={"delta": event.data.delta},
-                            agent="visualizer",
-                            stage="visualize",
-                            sequence=seq,
-                        )
-                        seq += 1
-                elif event.type == "run_item_stream_event":
+                # Skip raw_response_event (text_delta) for cleaner event stream
+                if event.type == "run_item_stream_event":
                     if event.item.type == "tool_call_item":
                         yield StreamEvent(
                             type=StreamEventTypes.TOOL_CALL,
