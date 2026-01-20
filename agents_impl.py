@@ -141,54 +141,63 @@ class OpenAIClarifier:
         )
         seq += 1
 
-        result = Runner.run_streamed(self._agent, query)
-        async for event in result.stream_events():
-            if event.type == "raw_response_event":
-                if isinstance(event.data, ResponseTextDeltaEvent):
-                    yield StreamEvent(
-                        type=StreamEventTypes.TEXT_DELTA,
-                        payload={"delta": event.data.delta},
-                        agent="clarifier",
-                        sequence=seq,
-                    )
-                    seq += 1
-            elif event.type == "run_item_stream_event":
-                if event.item.type == "tool_call_item":
-                    yield StreamEvent(
-                        type=StreamEventTypes.TOOL_CALL,
-                        payload={"name": getattr(event.item, "name", "unknown")},
-                        agent="clarifier",
-                        sequence=seq,
-                    )
-                    seq += 1
-                elif event.item.type == "tool_call_output_item":
-                    yield StreamEvent(
-                        type=StreamEventTypes.TOOL_OUTPUT,
-                        payload={"output": str(event.item.output)[:500]},
-                        agent="clarifier",
-                        sequence=seq,
-                    )
-                    seq += 1
-                elif event.item.type == "message_output_item":
-                    text = ItemHelpers.text_message_output(event.item)
-                    yield StreamEvent(
-                        type=StreamEventTypes.MESSAGE_COMPLETE,
-                        payload={"text": text[:1000]},
-                        agent="clarifier",
-                        sequence=seq,
-                    )
-                    seq += 1
+        try:
+            result = Runner.run_streamed(self._agent, query)
+            async for event in result.stream_events():
+                if event.type == "raw_response_event":
+                    if isinstance(event.data, ResponseTextDeltaEvent):
+                        yield StreamEvent(
+                            type=StreamEventTypes.TEXT_DELTA,
+                            payload={"delta": event.data.delta},
+                            agent="clarifier",
+                            sequence=seq,
+                        )
+                        seq += 1
+                elif event.type == "run_item_stream_event":
+                    if event.item.type == "tool_call_item":
+                        yield StreamEvent(
+                            type=StreamEventTypes.TOOL_CALL,
+                            payload={"name": getattr(event.item, "name", "unknown")},
+                            agent="clarifier",
+                            sequence=seq,
+                        )
+                        seq += 1
+                    elif event.item.type == "tool_call_output_item":
+                        yield StreamEvent(
+                            type=StreamEventTypes.TOOL_OUTPUT,
+                            payload={"output": str(event.item.output)[:500]},
+                            agent="clarifier",
+                            sequence=seq,
+                        )
+                        seq += 1
+                    elif event.item.type == "message_output_item":
+                        text = ItemHelpers.text_message_output(event.item)
+                        yield StreamEvent(
+                            type=StreamEventTypes.MESSAGE_COMPLETE,
+                            payload={"text": text[:1000]},
+                            agent="clarifier",
+                            sequence=seq,
+                        )
+                        seq += 1
 
-        output = result.final_output
-        if not isinstance(output, ClarifyOutput):
-            raise TypeError("Clarifier output is not ClarifyOutput")
-        normalized = _normalize_clarify_output(output, query)
-        yield StreamEvent(
-            type=StreamEventTypes.AGENT_COMPLETE,
-            payload={"output": asdict(normalized)},
-            agent="clarifier",
-            sequence=seq,
-        )
+            output = result.final_output
+            if not isinstance(output, ClarifyOutput):
+                raise TypeError("Clarifier output is not ClarifyOutput")
+            normalized = _normalize_clarify_output(output, query)
+            yield StreamEvent(
+                type=StreamEventTypes.AGENT_COMPLETE,
+                payload={"output": asdict(normalized)},
+                agent="clarifier",
+                sequence=seq,
+            )
+        except Exception as e:
+            yield StreamEvent(
+                type=StreamEventTypes.ERROR,
+                payload={"error": str(e), "error_type": type(e).__name__},
+                agent="clarifier",
+                sequence=seq,
+            )
+            raise
 
 
 def _normalize_clarify_output(output: ClarifyOutput, query: str) -> ClarifyOutput:
@@ -386,73 +395,83 @@ class OpenAISearcher:
         )
         seq += 1
 
-        result = Runner.run_streamed(search_agent, request.model_dump_json())
-        async for event in result.stream_events():
-            if event.type == "raw_response_event":
-                if isinstance(event.data, ResponseTextDeltaEvent):
-                    yield StreamEvent(
-                        type=StreamEventTypes.TEXT_DELTA,
-                        payload={"delta": event.data.delta},
-                        agent="searcher",
-                        stage="search",
-                        sequence=seq,
-                    )
-                    seq += 1
-            elif event.type == "run_item_stream_event":
-                if event.item.type == "tool_call_item":
-                    yield StreamEvent(
-                        type=StreamEventTypes.TOOL_CALL,
-                        payload={"name": getattr(event.item, "name", "unknown")},
-                        agent="searcher",
-                        stage="search",
-                        sequence=seq,
-                    )
-                    seq += 1
-                elif event.item.type == "tool_call_output_item":
-                    yield StreamEvent(
-                        type=StreamEventTypes.TOOL_OUTPUT,
-                        payload={"output": str(event.item.output)[:500]},
-                        agent="searcher",
-                        stage="search",
-                        sequence=seq,
-                    )
-                    seq += 1
-                elif event.item.type == "message_output_item":
-                    text = ItemHelpers.text_message_output(event.item)
-                    yield StreamEvent(
-                        type=StreamEventTypes.MESSAGE_COMPLETE,
-                        payload={"text": text[:1000]},
-                        agent="searcher",
-                        stage="search",
-                        sequence=seq,
-                    )
-                    seq += 1
+        try:
+            result = Runner.run_streamed(search_agent, request.model_dump_json())
+            async for event in result.stream_events():
+                if event.type == "raw_response_event":
+                    if isinstance(event.data, ResponseTextDeltaEvent):
+                        yield StreamEvent(
+                            type=StreamEventTypes.TEXT_DELTA,
+                            payload={"delta": event.data.delta},
+                            agent="searcher",
+                            stage="search",
+                            sequence=seq,
+                        )
+                        seq += 1
+                elif event.type == "run_item_stream_event":
+                    if event.item.type == "tool_call_item":
+                        yield StreamEvent(
+                            type=StreamEventTypes.TOOL_CALL,
+                            payload={"name": getattr(event.item, "name", "unknown")},
+                            agent="searcher",
+                            stage="search",
+                            sequence=seq,
+                        )
+                        seq += 1
+                    elif event.item.type == "tool_call_output_item":
+                        yield StreamEvent(
+                            type=StreamEventTypes.TOOL_OUTPUT,
+                            payload={"output": str(event.item.output)[:500]},
+                            agent="searcher",
+                            stage="search",
+                            sequence=seq,
+                        )
+                        seq += 1
+                    elif event.item.type == "message_output_item":
+                        text = ItemHelpers.text_message_output(event.item)
+                        yield StreamEvent(
+                            type=StreamEventTypes.MESSAGE_COMPLETE,
+                            payload={"text": text[:1000]},
+                            agent="searcher",
+                            stage="search",
+                            sequence=seq,
+                        )
+                        seq += 1
 
-        output = result.final_output
-        if not isinstance(output, SearchResult):
-            raise TypeError("Search output is not SearchResult")
+            output = result.final_output
+            if not isinstance(output, SearchResult):
+                raise TypeError("Search output is not SearchResult")
 
-        _PIPELINE_STATE.search_result = output
+            _PIPELINE_STATE.search_result = output
 
-        sources = [
-            Source(
-                source_id=paper.arxiv_id,
-                title=paper.title,
-                url=paper.url,
-                snippet=paper.abstract,
-                why_relevant=paper.why_selected or "Selected by search agent.",
+            sources = [
+                Source(
+                    source_id=paper.arxiv_id,
+                    title=paper.title,
+                    url=paper.url,
+                    snippet=paper.abstract,
+                    why_relevant=paper.why_selected or "Selected by search agent.",
+                )
+                for paper in output.selected_papers
+            ]
+
+            search_output = SearchOutput(refined_query=goal, sources=sources)
+            yield StreamEvent(
+                type=StreamEventTypes.AGENT_COMPLETE,
+                payload={"output": asdict(search_output)},
+                agent="searcher",
+                stage="search",
+                sequence=seq,
             )
-            for paper in output.selected_papers
-        ]
-
-        search_output = SearchOutput(refined_query=goal, sources=sources)
-        yield StreamEvent(
-            type=StreamEventTypes.AGENT_COMPLETE,
-            payload={"output": asdict(search_output)},
-            agent="searcher",
-            stage="search",
-            sequence=seq,
-        )
+        except Exception as e:
+            yield StreamEvent(
+                type=StreamEventTypes.ERROR,
+                payload={"error": str(e), "error_type": type(e).__name__},
+                agent="searcher",
+                stage="search",
+                sequence=seq,
+            )
+            raise
 
 
 class OpenAIExtractor:
@@ -529,77 +548,87 @@ class OpenAIExtractor:
         )
         seq += 1
 
-        result = Runner.run_streamed(extract_agent, request.model_dump_json())
-        async for event in result.stream_events():
-            if event.type == "raw_response_event":
-                if isinstance(event.data, ResponseTextDeltaEvent):
-                    yield StreamEvent(
-                        type=StreamEventTypes.TEXT_DELTA,
-                        payload={"delta": event.data.delta},
-                        agent="extractor",
-                        stage="extract",
-                        sequence=seq,
-                    )
-                    seq += 1
-            elif event.type == "run_item_stream_event":
-                if event.item.type == "tool_call_item":
-                    yield StreamEvent(
-                        type=StreamEventTypes.TOOL_CALL,
-                        payload={"name": getattr(event.item, "name", "unknown")},
-                        agent="extractor",
-                        stage="extract",
-                        sequence=seq,
-                    )
-                    seq += 1
-                elif event.item.type == "tool_call_output_item":
-                    yield StreamEvent(
-                        type=StreamEventTypes.TOOL_OUTPUT,
-                        payload={"output": str(event.item.output)[:500]},
-                        agent="extractor",
-                        stage="extract",
-                        sequence=seq,
-                    )
-                    seq += 1
-                elif event.item.type == "message_output_item":
-                    text = ItemHelpers.text_message_output(event.item)
-                    yield StreamEvent(
-                        type=StreamEventTypes.MESSAGE_COMPLETE,
-                        payload={"text": text[:1000]},
-                        agent="extractor",
-                        stage="extract",
-                        sequence=seq,
-                    )
-                    seq += 1
+        try:
+            result = Runner.run_streamed(extract_agent, request.model_dump_json())
+            async for event in result.stream_events():
+                if event.type == "raw_response_event":
+                    if isinstance(event.data, ResponseTextDeltaEvent):
+                        yield StreamEvent(
+                            type=StreamEventTypes.TEXT_DELTA,
+                            payload={"delta": event.data.delta},
+                            agent="extractor",
+                            stage="extract",
+                            sequence=seq,
+                        )
+                        seq += 1
+                elif event.type == "run_item_stream_event":
+                    if event.item.type == "tool_call_item":
+                        yield StreamEvent(
+                            type=StreamEventTypes.TOOL_CALL,
+                            payload={"name": getattr(event.item, "name", "unknown")},
+                            agent="extractor",
+                            stage="extract",
+                            sequence=seq,
+                        )
+                        seq += 1
+                    elif event.item.type == "tool_call_output_item":
+                        yield StreamEvent(
+                            type=StreamEventTypes.TOOL_OUTPUT,
+                            payload={"output": str(event.item.output)[:500]},
+                            agent="extractor",
+                            stage="extract",
+                            sequence=seq,
+                        )
+                        seq += 1
+                    elif event.item.type == "message_output_item":
+                        text = ItemHelpers.text_message_output(event.item)
+                        yield StreamEvent(
+                            type=StreamEventTypes.MESSAGE_COMPLETE,
+                            payload={"text": text[:1000]},
+                            agent="extractor",
+                            stage="extract",
+                            sequence=seq,
+                        )
+                        seq += 1
 
-        output = result.final_output
-        if not isinstance(output, ExtractorResult):
-            raise TypeError("Extractor output is not ExtractorResult")
+            output = result.final_output
+            if not isinstance(output, ExtractorResult):
+                raise TypeError("Extractor output is not ExtractorResult")
 
-        _PIPELINE_STATE.extractor_result = _normalize_extractor_result(output, search_result)
+            _PIPELINE_STATE.extractor_result = _normalize_extractor_result(output, search_result)
 
-        claims: list[MainClaim] = []
-        for claim in _PIPELINE_STATE.extractor_result.claims:
-            if claim.evidence is None:
-                continue
-            claims.append(
-                MainClaim(
-                    claim=claim.text,
-                    evidence=claim.evidence.quote,
-                    source_id=claim.doc_id,
-                    confidence=claim.confidence,
+            claims: list[MainClaim] = []
+            for claim in _PIPELINE_STATE.extractor_result.claims:
+                if claim.evidence is None:
+                    continue
+                claims.append(
+                    MainClaim(
+                        claim=claim.text,
+                        evidence=claim.evidence.quote,
+                        source_id=claim.doc_id,
+                        confidence=claim.confidence,
+                    )
                 )
+
+            gaps = [] if claims else ["No claims extracted."]
+            extract_output = ExtractOutput(claims=claims, gaps=gaps)
+
+            yield StreamEvent(
+                type=StreamEventTypes.AGENT_COMPLETE,
+                payload={"output": asdict(extract_output)},
+                agent="extractor",
+                stage="extract",
+                sequence=seq,
             )
-
-        gaps = [] if claims else ["No claims extracted."]
-        extract_output = ExtractOutput(claims=claims, gaps=gaps)
-
-        yield StreamEvent(
-            type=StreamEventTypes.AGENT_COMPLETE,
-            payload={"output": asdict(extract_output)},
-            agent="extractor",
-            stage="extract",
-            sequence=seq,
-        )
+        except Exception as e:
+            yield StreamEvent(
+                type=StreamEventTypes.ERROR,
+                payload={"error": str(e), "error_type": type(e).__name__},
+                agent="extractor",
+                stage="extract",
+                sequence=seq,
+            )
+            raise
 
 
 class OpenAIVerifier:
@@ -708,102 +737,112 @@ class OpenAIVerifier:
         )
         seq += 1
 
-        result = Runner.run_streamed(verifier_agent, request.model_dump_json())
-        async for event in result.stream_events():
-            if event.type == "raw_response_event":
-                if isinstance(event.data, ResponseTextDeltaEvent):
-                    yield StreamEvent(
-                        type=StreamEventTypes.TEXT_DELTA,
-                        payload={"delta": event.data.delta},
-                        agent="verifier",
-                        stage="verify",
-                        sequence=seq,
-                    )
-                    seq += 1
-            elif event.type == "run_item_stream_event":
-                if event.item.type == "tool_call_item":
-                    yield StreamEvent(
-                        type=StreamEventTypes.TOOL_CALL,
-                        payload={"name": getattr(event.item, "name", "unknown")},
-                        agent="verifier",
-                        stage="verify",
-                        sequence=seq,
-                    )
-                    seq += 1
-                elif event.item.type == "tool_call_output_item":
-                    yield StreamEvent(
-                        type=StreamEventTypes.TOOL_OUTPUT,
-                        payload={"output": str(event.item.output)[:500]},
-                        agent="verifier",
-                        stage="verify",
-                        sequence=seq,
-                    )
-                    seq += 1
-                elif event.item.type == "message_output_item":
-                    text = ItemHelpers.text_message_output(event.item)
-                    yield StreamEvent(
-                        type=StreamEventTypes.MESSAGE_COMPLETE,
-                        payload={"text": text[:1000]},
-                        agent="verifier",
-                        stage="verify",
-                        sequence=seq,
-                    )
-                    seq += 1
+        try:
+            result = Runner.run_streamed(verifier_agent, request.model_dump_json())
+            async for event in result.stream_events():
+                if event.type == "raw_response_event":
+                    if isinstance(event.data, ResponseTextDeltaEvent):
+                        yield StreamEvent(
+                            type=StreamEventTypes.TEXT_DELTA,
+                            payload={"delta": event.data.delta},
+                            agent="verifier",
+                            stage="verify",
+                            sequence=seq,
+                        )
+                        seq += 1
+                elif event.type == "run_item_stream_event":
+                    if event.item.type == "tool_call_item":
+                        yield StreamEvent(
+                            type=StreamEventTypes.TOOL_CALL,
+                            payload={"name": getattr(event.item, "name", "unknown")},
+                            agent="verifier",
+                            stage="verify",
+                            sequence=seq,
+                        )
+                        seq += 1
+                    elif event.item.type == "tool_call_output_item":
+                        yield StreamEvent(
+                            type=StreamEventTypes.TOOL_OUTPUT,
+                            payload={"output": str(event.item.output)[:500]},
+                            agent="verifier",
+                            stage="verify",
+                            sequence=seq,
+                        )
+                        seq += 1
+                    elif event.item.type == "message_output_item":
+                        text = ItemHelpers.text_message_output(event.item)
+                        yield StreamEvent(
+                            type=StreamEventTypes.MESSAGE_COMPLETE,
+                            payload={"text": text[:1000]},
+                            agent="verifier",
+                            stage="verify",
+                            sequence=seq,
+                        )
+                        seq += 1
 
-        output = result.final_output
-        if not isinstance(output, VerifierResult):
-            raise TypeError("Verifier output is not VerifierResult")
+            output = result.final_output
+            if not isinstance(output, VerifierResult):
+                raise TypeError("Verifier output is not VerifierResult")
 
-        claim_lookup = {claim.claim_id: claim for claim in request.extractor_result.claims}
-        verdicts: list[MainVerification] = []
-        for judgement in output.claim_judgements:
-            claim = claim_lookup.get(judgement.claim_id)
-            confidence = _confidence_from_status(judgement.status)
-            verdicts.append(
-                MainVerification(
-                    claim=claim.text if claim else judgement.claim_id,
-                    verdict=judgement.status,
-                    rationale=judgement.reason,
-                    confidence=confidence,
-                    source_id=claim.doc_id if claim else None,
-                    required_evidence=[],
+            claim_lookup = {claim.claim_id: claim for claim in request.extractor_result.claims}
+            verdicts: list[MainVerification] = []
+            for judgement in output.claim_judgements:
+                claim = claim_lookup.get(judgement.claim_id)
+                confidence = _confidence_from_status(judgement.status)
+                verdicts.append(
+                    MainVerification(
+                        claim=claim.text if claim else judgement.claim_id,
+                        verdict=judgement.status,
+                        rationale=judgement.reason,
+                        confidence=confidence,
+                        source_id=claim.doc_id if claim else None,
+                        required_evidence=[],
+                    )
                 )
+
+            queries: list[str] = []
+            for action in output.next_actions:
+                for query in action.suggested_queries:
+                    if query not in queries:
+                        queries.append(query)
+
+            next_actions: list[MainNextAction] = []
+            for action in output.next_actions:
+                if action.type == "human_review":
+                    continue
+                next_actions.append(
+                    MainNextAction(
+                        action_type=action.type,
+                        priority=action.priority,
+                        why=action.why,
+                        suggested_queries=action.suggested_queries,
+                        target_concepts=action.target_concepts,
+                    )
+                )
+
+            verify_output = VerifyOutput(
+                verdicts=verdicts,
+                is_enough=output.quality_gate.passed,
+                next_search_queries=queries,
+                next_actions=next_actions,
             )
 
-        queries: list[str] = []
-        for action in output.next_actions:
-            for query in action.suggested_queries:
-                if query not in queries:
-                    queries.append(query)
-
-        next_actions: list[MainNextAction] = []
-        for action in output.next_actions:
-            if action.type == "human_review":
-                continue
-            next_actions.append(
-                MainNextAction(
-                    action_type=action.type,
-                    priority=action.priority,
-                    why=action.why,
-                    suggested_queries=action.suggested_queries,
-                    target_concepts=action.target_concepts,
-                )
+            yield StreamEvent(
+                type=StreamEventTypes.AGENT_COMPLETE,
+                payload={"output": asdict(verify_output)},
+                agent="verifier",
+                stage="verify",
+                sequence=seq,
             )
-
-        verify_output = VerifyOutput(
-            verdicts=verdicts,
-            is_enough=output.quality_gate.passed,
-            next_search_queries=queries,
-            next_actions=next_actions,
-        )
-
-        yield StreamEvent(
-            type=StreamEventTypes.AGENT_COMPLETE,
-            payload={"output": asdict(verify_output)},
-            agent="verifier",
-            stage="verify",
-            sequence=seq,
-        )
+        except Exception as e:
+            yield StreamEvent(
+                type=StreamEventTypes.ERROR,
+                payload={"error": str(e), "error_type": type(e).__name__},
+                agent="verifier",
+                stage="verify",
+                sequence=seq,
+            )
+            raise
 
 
 def _fallback_search_result(context: str) -> SearchResult:
@@ -1037,60 +1076,70 @@ class OpenAIVisualizer:
         )
         seq += 1
 
-        result = Runner.run_streamed(self._agent, context)
-        async for event in result.stream_events():
-            if event.type == "raw_response_event":
-                if isinstance(event.data, ResponseTextDeltaEvent):
-                    yield StreamEvent(
-                        type=StreamEventTypes.TEXT_DELTA,
-                        payload={"delta": event.data.delta},
-                        agent="visualizer",
-                        stage="visualize",
-                        sequence=seq,
-                    )
-                    seq += 1
-            elif event.type == "run_item_stream_event":
-                if event.item.type == "tool_call_item":
-                    yield StreamEvent(
-                        type=StreamEventTypes.TOOL_CALL,
-                        payload={"name": getattr(event.item, "name", "unknown")},
-                        agent="visualizer",
-                        stage="visualize",
-                        sequence=seq,
-                    )
-                    seq += 1
-                elif event.item.type == "tool_call_output_item":
-                    yield StreamEvent(
-                        type=StreamEventTypes.TOOL_OUTPUT,
-                        payload={"output": str(event.item.output)[:500]},
-                        agent="visualizer",
-                        stage="visualize",
-                        sequence=seq,
-                    )
-                    seq += 1
-                elif event.item.type == "message_output_item":
-                    text = ItemHelpers.text_message_output(event.item)
-                    yield StreamEvent(
-                        type=StreamEventTypes.MESSAGE_COMPLETE,
-                        payload={"text": text[:1000]},
-                        agent="visualizer",
-                        stage="visualize",
-                        sequence=seq,
-                    )
-                    seq += 1
+        try:
+            result = Runner.run_streamed(self._agent, context)
+            async for event in result.stream_events():
+                if event.type == "raw_response_event":
+                    if isinstance(event.data, ResponseTextDeltaEvent):
+                        yield StreamEvent(
+                            type=StreamEventTypes.TEXT_DELTA,
+                            payload={"delta": event.data.delta},
+                            agent="visualizer",
+                            stage="visualize",
+                            sequence=seq,
+                        )
+                        seq += 1
+                elif event.type == "run_item_stream_event":
+                    if event.item.type == "tool_call_item":
+                        yield StreamEvent(
+                            type=StreamEventTypes.TOOL_CALL,
+                            payload={"name": getattr(event.item, "name", "unknown")},
+                            agent="visualizer",
+                            stage="visualize",
+                            sequence=seq,
+                        )
+                        seq += 1
+                    elif event.item.type == "tool_call_output_item":
+                        yield StreamEvent(
+                            type=StreamEventTypes.TOOL_OUTPUT,
+                            payload={"output": str(event.item.output)[:500]},
+                            agent="visualizer",
+                            stage="visualize",
+                            sequence=seq,
+                        )
+                        seq += 1
+                    elif event.item.type == "message_output_item":
+                        text = ItemHelpers.text_message_output(event.item)
+                        yield StreamEvent(
+                            type=StreamEventTypes.MESSAGE_COMPLETE,
+                            payload={"text": text[:1000]},
+                            agent="visualizer",
+                            stage="visualize",
+                            sequence=seq,
+                        )
+                        seq += 1
 
-        output = result.final_output
-        if not isinstance(output, VisualOutput):
-            raise TypeError("Visualizer output is not VisualOutput")
+            output = result.final_output
+            if not isinstance(output, VisualOutput):
+                raise TypeError("Visualizer output is not VisualOutput")
 
-        normalized = _normalize_visual_output(output, report)
-        yield StreamEvent(
-            type=StreamEventTypes.AGENT_COMPLETE,
-            payload={"output": asdict(normalized)},
-            agent="visualizer",
-            stage="visualize",
-            sequence=seq,
-        )
+            normalized = _normalize_visual_output(output, report)
+            yield StreamEvent(
+                type=StreamEventTypes.AGENT_COMPLETE,
+                payload={"output": asdict(normalized)},
+                agent="visualizer",
+                stage="visualize",
+                sequence=seq,
+            )
+        except Exception as e:
+            yield StreamEvent(
+                type=StreamEventTypes.ERROR,
+                payload={"error": str(e), "error_type": type(e).__name__},
+                agent="visualizer",
+                stage="visualize",
+                sequence=seq,
+            )
+            raise
 
 
 def _parse_report_context(context: str) -> dict[str, Any]:
