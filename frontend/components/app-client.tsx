@@ -512,7 +512,7 @@ export default function AppClient() {
           <div className="panel-header">
             <div>
               <div className="panel-title">Agent Trace</div>
-              <div className="panel-subtitle">Input -> output payloads (always visible)</div>
+              <div className="panel-subtitle">Input → output payloads (always visible)</div>
             </div>
             <span className="pill">Steps {orderedSteps.length}</span>
           </div>
