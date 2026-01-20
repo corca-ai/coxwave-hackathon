@@ -308,6 +308,7 @@ def _run_clarifier_loop(agents: DemoAgents, query: str, max_rounds: int) -> tupl
     rounds: list[dict] = []
     current_query = query
     last_output: Optional[ClarifyOutput] = None
+    all_answers: list[dict] = []
 
     for idx in range(max_rounds):
         title = "Clarify" if idx == 0 else f"Clarify (Round {idx + 1})"
@@ -347,6 +348,7 @@ def _run_clarifier_loop(agents: DemoAgents, query: str, max_rounds: int) -> tupl
         for question in clarify_out.clarifying_questions:
             answer = ask(f"{question}\n> ")
             answers.append({"question": question, "answer": answer})
+        all_answers.extend(answers)
         rounds.append(
             {
                 "input": current_query,
@@ -357,7 +359,7 @@ def _run_clarifier_loop(agents: DemoAgents, query: str, max_rounds: int) -> tupl
         )
 
         followup_lines = [f"Original query: {query}", "Clarifications:"]
-        for entry in answers:
+        for entry in all_answers:
             followup_lines.append(f"Q: {entry['question']}")
             followup_lines.append(f"A: {entry['answer']}")
         current_query = "\n".join(followup_lines)

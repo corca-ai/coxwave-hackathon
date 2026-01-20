@@ -19,8 +19,13 @@ class ClarifierAgentTests(unittest.TestCase):
         self.agents = build_agents()
 
     def test_ambiguous_query_prompts_questions(self) -> None:
-        output = self.agents.clarifier.run("AI alignment")
-        artifact = write_json_artifact("clarifier_ambiguous.json", output)
+        query = "AI alignment"
+        print(f"Clarifier input: {query}")
+        output = self.agents.clarifier.run(query)
+        artifact = write_json_artifact(
+            "clarifier_ambiguous.json",
+            {"input": query, "output": asdict(output)},
+        )
         print(f"Clarifier ambiguous output saved to {artifact}")
         print(json.dumps(asdict(output), indent=2, ensure_ascii=True))
         self.assertIsInstance(output, ClarifyOutput)
@@ -29,8 +34,13 @@ class ClarifierAgentTests(unittest.TestCase):
         self.assertTrue(output.interpreted_query)
 
     def test_output_has_assumptions_field(self) -> None:
-        output = self.agents.clarifier.run("Fast LLM evals")
-        artifact = write_json_artifact("clarifier_assumptions.json", output)
+        query = "Fast LLM evals"
+        print(f"Clarifier input: {query}")
+        output = self.agents.clarifier.run(query)
+        artifact = write_json_artifact(
+            "clarifier_assumptions.json",
+            {"input": query, "output": asdict(output)},
+        )
         print(f"Clarifier assumptions output saved to {artifact}")
         print(json.dumps(asdict(output), indent=2, ensure_ascii=True))
         self.assertIsInstance(output, ClarifyOutput)

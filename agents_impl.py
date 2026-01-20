@@ -57,6 +57,9 @@ def _normalize_clarify_output(output: ClarifyOutput, query: str) -> ClarifyOutpu
     clarifying_questions = output.clarifying_questions or []
     is_clear_enough = output.is_clear_enough
 
+    if clarifying_questions and is_clear_enough:
+        is_clear_enough = False
+
     if _is_ambiguous(query):
         if not clarifying_questions:
             clarifying_questions = [
@@ -64,6 +67,8 @@ def _normalize_clarify_output(output: ClarifyOutput, query: str) -> ClarifyOutpu
                 "What time range or scope should we focus on?",
             ]
         is_clear_enough = False
+    elif not is_clear_enough and not clarifying_questions:
+        clarifying_questions = ["What specific scope or constraints should we use?"]
 
     if len(clarifying_questions) > 3:
         clarifying_questions = clarifying_questions[:3]
