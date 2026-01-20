@@ -35,6 +35,26 @@ python3 main.py --mock --query "Which techniques improve long-context reliabilit
 - **Self-Healing 데이터**: 품질 지표 기반 자동 개선 (고립 노드 탐지, 연결성 강화)
 - **Observability**: 에이전트 동작 과정을 사용자에게 투명하게 공개
 
+## 데모 시나리오
+
+- 사용자가 질의를 입력
+- Clarifier가 의도 파악 및 필요한 질문
+- 충분히 명확해지면 “이 방식으로 연구할까요?” 확인
+- 승인 시 Orchestrator가 자동 진행하며 Verifier가 증거 충분성을 판단
+- 부족하면 Search → Extract → Verify 루프를 수행
+- Writer가 최종 JSON 리포트를 생성
+- (Optional) Visualizer가 사전 컴포넌트를 조합
+- 최종 결과 출력
+
+## 성공 기준 (Demo)
+
+- **End-to-end completion**: 벤치마크 3개 질의에서 모든 단계 완료 및 종료 코드 0
+- **Clarification quality**: 모호한 질의 1개 이상에서 clarifying question ≥1개, 답변이 Planner 컨텍스트에 반영
+- **Plan approval**: 각 질의에서 1회 이내 수정으로 계획 승인
+- **Evidence sufficiency**: Verifier가 `is_enough = true` 및 supported claim ≥2개(각각 `source_id`+evidence 포함)
+- **Report completeness**: executive summary, key findings ≥3, citations가 sources와 정합
+- **Observability**: 모든 단계 JSON 출력, 데모 환경에서 질의당 3분 내 완료
+
 ## 조건 충족 여부
 
 - [ ] OpenAI API 사용
