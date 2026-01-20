@@ -21,6 +21,23 @@ from main import (
 from env_loader import load_env
 
 
+def _model_supports_sampling_params(model: str) -> bool:
+    normalized = model.strip().lower()
+    if normalized.startswith("gpt-5.2") or normalized.startswith("gpt-5.1"):
+        return True
+    if normalized.startswith("gpt-5"):
+        return False
+    return True
+
+
+def _build_model_settings(model: str, temperature: Optional[float]) -> ModelSettings:
+    if temperature is None:
+        return ModelSettings()
+    if not _model_supports_sampling_params(model):
+        return ModelSettings()
+    return ModelSettings(temperature=temperature)
+
+
 class OpenAIClarifier:
     def __init__(self, model: Optional[str] = None, temperature: Optional[float] = None) -> None:
         load_env(keys=["OPENAI_API_KEY", "OPENAI_MODEL", "OPENAI_TEMPERATURE"])
@@ -31,7 +48,7 @@ class OpenAIClarifier:
         self._agent = Agent(
             name="Clarifier",
             model=resolved_model,
-            model_settings=ModelSettings(temperature=temp_value),
+            model_settings=_build_model_settings(resolved_model, temp_value),
             output_type=ClarifyOutput,
             instructions=(
                 "You clarify a research query for a serious user. "
@@ -98,7 +115,7 @@ class OpenAIVisualizer:
         self._agent = Agent(
             name="Visualizer",
             model=resolved_model,
-            model_settings=ModelSettings(temperature=temp_value),
+            model_settings=_build_model_settings(resolved_model, temp_value),
             output_type=AgentOutputSchema(VisualOutput, strict_json_schema=False),
             instructions=(
                 "You convert a report JSON into a UI component spec. "
