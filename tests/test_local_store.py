@@ -62,6 +62,15 @@ class TestLoadExistingIds:
         result = store.load_existing_ids("test-namespace")
         assert result == {"2301.00001", "2301.00002", "2301.00003"}
 
+    def test_load_existing_ids_invalid_json(self, tmp_path):
+        """Should return empty set when JSON is invalid."""
+        store = LocalStore(artifacts_dir=tmp_path)
+        papers_file = tmp_path / "test-namespace_papers.json"
+        papers_file.write_text("{invalid json", encoding="utf-8")
+
+        result = store.load_existing_ids("test-namespace")
+        assert result == set()
+
 
 class TestAppendPapers:
     """Tests for LocalStore.append_papers method."""
@@ -121,6 +130,23 @@ class TestAppendPapers:
         count = store.append_papers("test-namespace", candidates)
 
         assert count == 0
+
+    def test_append_papers_dedupes_input(self, tmp_path):
+        """Should not write duplicate arxiv_ids from input candidates."""
+        store = LocalStore(artifacts_dir=tmp_path)
+        candidates = [
+            make_candidate("2301.00001", "Paper 1"),
+            make_candidate("2301.00001", "Paper 1 duplicate"),
+            make_candidate("2301.00002", "Paper 2"),
+        ]
+
+        count = store.append_papers("test-namespace", candidates)
+
+        assert count == 2
+        papers_file = tmp_path / "test-namespace_papers.json"
+        with open(papers_file, encoding="utf-8") as f:
+            saved_papers = json.load(f)
+        assert len(saved_papers) == 2
 
 
 class TestSaveResult:

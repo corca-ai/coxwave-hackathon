@@ -10,7 +10,7 @@ from agent.search.schemas import Candidate
 
 def _search_sources_impl(
     queries: list[str],
-    sources: list[str] = ["arxiv"],
+    sources: list[str] | None = None,
     max_results: int = 80,
     time_range_years: int = 7,
     categories: list[str] | None = None,
@@ -28,6 +28,28 @@ def _search_sources_impl(
     Returns:
         List of candidate documents (ranked and deduplicated).
     """
+    if not queries:
+        return []
+    if isinstance(queries, str):
+        queries = [queries]
+    if not isinstance(queries, list):
+        return []
+    queries = [str(q).strip() for q in queries if str(q).strip()]
+    if not queries:
+        return []
+
+    if sources is None:
+        sources = ["arxiv"]
+    if isinstance(sources, str):
+        sources = [sources]
+    if not isinstance(sources, list):
+        sources = ["arxiv"]
+
+    if max_results <= 0:
+        return []
+    if time_range_years <= 0:
+        time_range_years = 0
+
     all_candidates: list[Candidate] = []
 
     for source in sources:
@@ -39,7 +61,10 @@ def _search_sources_impl(
                 time_range_years=time_range_years,
                 categories=categories,
             )
-            candidates = client.search(params)
+            try:
+                candidates = client.search(params)
+            except Exception:
+                candidates = []
             all_candidates.extend(candidates)
         elif source == "internal":
             pass  # TODO: v1.1

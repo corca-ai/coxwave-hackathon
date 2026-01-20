@@ -6,7 +6,7 @@ import click
 from agents import Runner
 
 from agent.verify.agent import verifier_agent
-from agent.verify.schemas import VerifierRequest, ExtractorResult
+from agent.verify.schemas import ExtractorResult, VerifierRequest
 from agent.verify.tools.rag import set_artifacts_dir
 from env_loader import load_env
 
@@ -50,17 +50,19 @@ def verify(
         extractor_result=ExtractorResult(**extractor_data)
     )
 
+    click.echo("Verifier input:")
+    click.echo(
+        json.dumps(request.model_dump(), indent=2, ensure_ascii=True)
+    )
     click.echo(f"Verifying: {goal}")
     click.echo(f"Claims: {len(request.extractor_result.claims)}")
-    click.echo("Verify input:")
-    click.echo(json.dumps(request.model_dump(), indent=2, ensure_ascii=True))
 
     # Agent 실행 - JSON을 user message로 전달
     result = Runner.run_sync(verifier_agent, request.model_dump_json())
 
     # 결과 출력
     output_data = result.final_output.model_dump()
-    click.echo("Verify output:")
+    click.echo("Verifier output:")
     click.echo(json.dumps(output_data, indent=2, ensure_ascii=True))
     click.echo("\n=== Verification Result ===")
     click.echo(f"Quality Gate: {'PASS' if output_data['quality_gate']['passed'] else 'FAIL'}")

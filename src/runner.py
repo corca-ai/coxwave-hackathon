@@ -24,7 +24,6 @@ def search(goal: str, namespace: str, target_docs: int, artifacts_dir: str):
     load_env(keys=["OPENAI_API_KEY", "OPENAI_MODEL", "OPENAI_TEMPERATURE"])
     if not os.getenv("OPENAI_API_KEY"):
         raise click.ClickException("OPENAI_API_KEY is not set.")
-
     artifacts_path = Path(artifacts_dir)
     set_artifacts_dir(artifacts_path)
 
@@ -34,9 +33,9 @@ def search(goal: str, namespace: str, target_docs: int, artifacts_dir: str):
         constraints=Constraints(target_new_docs=target_docs),
     )
 
-    click.echo(f"Searching: {goal}")
     click.echo("Search input:")
     click.echo(json.dumps(request.model_dump(), indent=2, ensure_ascii=True))
+    click.echo(f"Searching: {goal}")
     result = Runner.run_sync(search_agent, request.model_dump_json())
 
     output = result.final_output.model_dump()

@@ -181,6 +181,20 @@ class TestCalculateScoreRecency:
         # recency_score = max(0, 1 - 20/10) = max(0, -1) = 0
         assert score == 0.0
 
+    def test_future_year_paper(self):
+        """calculate_score should cap recency score at 1.0 for future years."""
+        current_year = datetime.now().year
+        candidate = _make_candidate(
+            "2301.00001",
+            title="Future Paper",
+            year=current_year + 2,
+        )
+
+        score = calculate_score(candidate, [])
+
+        # recency_score should be capped at 1.0 => score = 0.4
+        assert score == 0.4
+
 
 class TestRankCandidatesByScore:
     """Test ranking candidates by computed score."""
