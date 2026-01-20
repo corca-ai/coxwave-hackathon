@@ -257,12 +257,42 @@ def _normalize_visual_output(output: VisualOutput, report: dict[str, Any]) -> Vi
 
 
 def build_agents() -> DemoAgents:
+    load_env(
+        keys=[
+            "USE_DSPY_CLARIFIER",
+            "USE_DSPY_VISUALIZER",
+            "DSPY_MODEL",
+            "DSPY_TEMPERATURE",
+            "DSPY_MAX_TOKENS",
+        ]
+    )
+    clarifier = OpenAIClarifier()
+    use_dspy = os.getenv("USE_DSPY_CLARIFIER", "").lower() in {"1", "true", "yes"}
+    if use_dspy:
+        try:
+            from dspy_integration.clarifier import DSPyClarifier
+        except ImportError as exc:
+            raise RuntimeError(
+                "USE_DSPY_CLARIFIER is set but DSPy is unavailable."
+            ) from exc
+        clarifier = DSPyClarifier()
+    visualizer = OpenAIVisualizer()
+    use_dspy_visualizer = os.getenv("USE_DSPY_VISUALIZER", "").lower() in {"1", "true", "yes"}
+    if use_dspy_visualizer:
+        try:
+            from dspy_integration.visualizer import DSPyVisualizer
+        except ImportError as exc:
+            raise RuntimeError(
+                "USE_DSPY_VISUALIZER is set but DSPy is unavailable."
+            ) from exc
+        visualizer = DSPyVisualizer()
+
     return DemoAgents(
-        clarifier=OpenAIClarifier(),
+        clarifier=clarifier,
         planner=MockPlanner(),
         searcher=MockSearcher(),
         extractor=MockExtractor(),
         verifier=MockVerifier(),
         writer=MockWriter(),
-        visualizer=OpenAIVisualizer(),
+        visualizer=visualizer,
     )

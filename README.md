@@ -168,6 +168,9 @@ python3 visualizer_cli.py --input path/to/report.json
 # 의존성 설치 (Clarifier 실사용 시 필요)
 pip install -r requirements.txt
 
+# DSPy 개발용 의존성 (선택)
+pip install -r requirements-dev.txt
+
 # API 키 설정 (환경변수 또는 .env 파일)
 export OPENAI_API_KEY=sk-...
 
@@ -201,6 +204,7 @@ def build_agents() -> DemoAgents:
 
 - [concepts.md](./concepts.md) - 지식 그래프/온톨로지 핵심 개념
 - [implementation.md](./implementation.md) - 구현 도구 및 기술 스택
+- [dspy.md](./docs/dspy.md) - DSPy 사용/최적화 가이드
 - [demo-scenario.md](./demo-scenario.md) - 데모 시나리오 상세
 - [meta-strategy.md](./meta-strategy.md) - 개발 전략
 - [problem-1pager-demo.md](./plans/002-demo/problem-1pager.md) - 데모 성공 기준/측정
@@ -242,10 +246,31 @@ python3 visualizer_cli.py --input tests/fixtures/visualizer_report.json
 
 # 데모 시나리오 전체 (mock)
 python3 main.py --mock --query "Investigate RAG and hallucination in legal QA"
+
+# DSPy Clarifier 단독 확인 (DSPy 설치 필요)
+python3 -m dspy_integration.clarifier_cli --query "AI alignment"
 ```
 
 테스트 실행 로그는 `tests/_artifacts/`에 저장된다.
 E2E 테스트는 콘솔에도 전체 로그를 출력한다.
+
+## 평가(Evals)
+
+로컬 평가 하네스는 에이전트별 JSONL 데이터셋을 사용한다. 입력/출력 payload는 항상 출력된다.
+
+```bash
+# Clarifier 평가 (실제 API 사용)
+python3 evals_cli.py --agent clarifier --dataset evals/datasets/clarifier.jsonl
+
+# Mock 에이전트로 평가 (API 키 불필요)
+python3 evals_cli.py --agent clarifier --dataset evals/datasets/clarifier.jsonl --mock
+
+# DSPy 엔진으로 평가 (DSPy 설치 필요)
+python3 evals_cli.py --agent clarifier --engine dspy --dataset evals/datasets/clarifier.jsonl
+```
+
+- `EVAL_MAX_SAMPLES`로 평가 샘플 상한을 설정할 수 있으며, `--max-samples`로 오버라이드한다.
+- 결과 로그는 기본적으로 `evals/_artifacts/`에 저장되며, `EVAL_ARTIFACT_DIR`로 변경 가능하다.
 
 ## 향후 계획
 
