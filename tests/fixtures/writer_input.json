@@ -1,0 +1,85 @@
+{
+  "clarifier": {
+    "original_query": "AI alignment in healthcare",
+    "rounds": [
+      {
+        "input": "AI alignment in healthcare",
+        "output": {
+          "is_clear_enough": false,
+          "clarifying_questions": [
+            "What is the target domain or industry?"
+          ],
+          "interpreted_query": "AI alignment in healthcare",
+          "assumptions": []
+        },
+        "answers": [
+          {
+            "question": "What is the target domain or industry?",
+            "answer": "clinical decision support"
+          }
+        ],
+        "skipped": false
+      }
+    ],
+    "final": {
+      "is_clear_enough": true,
+      "clarifying_questions": [],
+      "interpreted_query": "AI alignment in clinical decision support for hospitals",
+      "assumptions": [
+        "Assuming recent academic and industry sources"
+      ]
+    }
+  },
+  "plan": {
+    "plan_summary": "Define scope, gather sources, extract claims, verify, summarize.",
+    "steps": [
+      "Clarify scope and key terms",
+      "Collect primary sources",
+      "Extract claims and evidence",
+      "Verify and synthesize"
+    ],
+    "success_criteria": [
+      "At least 3 supported claims",
+      "Clear limitations"
+    ],
+    "data_needs": [
+      "Primary sources",
+      "Recent surveys"
+    ]
+  },
+  "sources": {
+    "refined_query": "AI alignment clinical decision support hospitals",
+    "sources": [
+      {
+        "source_id": "S1",
+        "title": "Alignment Methods for Clinical Decision Support",
+        "url": "https://example.com/alignment-clinical",
+        "snippet": "A study on alignment methods for clinical systems.",
+        "why_relevant": "Primary evidence for safety improvements"
+      },
+      {
+        "source_id": "S2",
+        "title": "Human-in-the-loop Safety in Healthcare AI",
+        "url": "https://example.com/hitl-safety",
+        "snippet": "Survey of human review practices in healthcare AI.",
+        "why_relevant": "Provides context on oversight and safety"
+      }
+    ]
+  },
+  "supported_claims": [
+    {
+      "claim": "Alignment approaches reduce harmful recommendations in clinical decision support systems.",
+      "verdict": "supported",
+      "rationale": "Reported reductions in unsafe suggestions after alignment training.",
+      "confidence": 0.78,
+      "source_id": "S1"
+    },
+    {
+      "claim": "Human-in-the-loop review improves safety in high-risk deployments.",
+      "verdict": "supported",
+      "rationale": "Surveyed deployments show fewer incidents with expert review.",
+      "confidence": 0.74,
+      "source_id": "S2"
+    }
+  ]
+}

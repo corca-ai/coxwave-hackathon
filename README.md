@@ -16,6 +16,16 @@ Clarifier 단독 실행:
 python3 clarifier_cli.py --query "Ambiguous short query"
 ```
 
+Writer 단독 실행:
+```bash
+python3 writer_cli.py --input path/to/writer_input.json
+```
+
+Visualizer 단독 실행:
+```bash
+python3 visualizer_cli.py --input path/to/report.json
+```
+
 ### Search Agent
 
 Search Agent를 단독으로 실행할 수 있다:
@@ -37,9 +47,6 @@ python -m src.runner \
   --namespace demo \
   --target-docs 20 \
   --artifacts-dir artifacts
-Visualizer 단독 실행:
-```bash
-python3 visualizer_cli.py --input path/to/report.json
 ```
 
 ## 문제 정의
@@ -85,7 +92,7 @@ python3 visualizer_cli.py --input path/to/report.json
 - **Clarification quality**: 모호한 질의 1개 이상에서 clarifying question ≥1개, 답변이 Planner 컨텍스트에 반영
 - **Plan approval**: 각 질의에서 1회 이내 수정으로 계획 승인
 - **Evidence sufficiency**: Verifier가 `is_enough = true` 및 supported claim ≥2개(각각 `source_id`+evidence 포함)
-- **Report completeness**: executive summary, key findings ≥3, citations가 sources와 정합
+- **Report completeness**: executive summary 포함, key findings는 가능하면 ≥3(부족 시 limitations에 명시), citations가 sources와 정합
 - **Observability**: 모든 단계 JSON 출력, 데모 환경에서 질의당 3분 내 완료
 - **Automated E2E**: mock 모드 end-to-end 테스트가 무인으로 통과
 
@@ -101,10 +108,10 @@ python3 visualizer_cli.py --input path/to/report.json
 | --- | --- | --- |
 | Clarifier | Implemented (OpenAI Agents SDK) | 단독 CLI + 단위 테스트 |
 | Planner | Mock | placeholder |
-| Searcher | Implemented (OpenAI Agents SDK, Standalone CLI) | `src/runner.py`로 단독 실행, 데모 파이프라인 미연결 |
-| Extractor | Mock | placeholder |
-| Verifier | Implemented (OpenAI Agents SDK, Standalone CLI) | `src/agent/verify/runner.py`로 단독 실행, 데모 파이프라인 미연결 |
-| Writer | Mock | placeholder |
+| Searcher | Implemented (Standalone CLI) | `src/runner.py`로 단독 실행, 메인 데모는 mock 사용 |
+| Extractor | Implemented (OpenAI Agents SDK) | `src/agent/extract/runner.py`로 단독 실행 |
+| Verifier | Implemented (Standalone CLI) | `src/agent/verify/runner.py`로 단독 실행 |
+| Writer | Implemented (OpenAI Agents SDK) | 단독 CLI + 단위 테스트 |
 | Visualizer | Implemented (OpenAI Agents SDK) | 단독 CLI + 단위 테스트 |
 
 ## 아키텍처
@@ -182,6 +189,9 @@ python3 main.py --query "Your research question"
 
 # Clarifier 단독 실행
 python3 clarifier_cli.py --query "Your research question"
+
+# Writer 단독 실행
+python3 writer_cli.py --input path/to/writer_input.json
 ```
 
 `.env` 파일에 `OPENAI_API_KEY`를 넣어두면 자동으로 로드된다.
@@ -228,8 +238,21 @@ python3 -m unittest tests/test_clarifier.py
 # Visualizer 단위 테스트 (OPENAI_API_KEY가 없으면 자동으로 skip)
 python3 -m unittest tests/test_visualizer.py
 
+# Writer 단위 테스트 (OPENAI_API_KEY가 없으면 자동으로 skip)
+python3 -m unittest tests/test_writer.py
+
 # Demo E2E (mock)
 python3 -m unittest tests/test_demo_e2e.py
+```
+
+전체 테스트 스위트(pytest, integration 제외):
+```bash
+.venv/bin/python -m pytest -m "not integration"
+```
+
+통합 테스트(실제 API 호출 포함):
+```bash
+.venv/bin/python -m pytest -m integration
 ```
 
 ### 수동 테스트
@@ -237,6 +260,12 @@ python3 -m unittest tests/test_demo_e2e.py
 ```bash
 # Clarifier 단독 확인
 python3 clarifier_cli.py --query "AI alignment"
+
+# Writer 단독 확인 (Writer input JSON 필요)
+python3 writer_cli.py --input path/to/writer_input.json
+
+# Writer 단독 확인 (테스트 fixture 사용)
+python3 writer_cli.py --input tests/fixtures/writer_input.json
 
 # Visualizer 단독 확인 (ReportOutput JSON 필요)
 python3 visualizer_cli.py --input path/to/report.json
