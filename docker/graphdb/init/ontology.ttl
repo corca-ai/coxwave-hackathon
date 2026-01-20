@@ -1,0 +1,166 @@
+# Research Navigator Ontology Schema
+# Defines Paper, Claim, Concept entities and their relationships
+
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix res: <http://researcher.local/ontology#> .
+
+# =============================================================================
+# Ontology Declaration
+# =============================================================================
+
+res: a owl:Ontology ;
+    rdfs:label "Research Navigator Ontology"@en ;
+    rdfs:comment "Knowledge graph schema for research papers, claims, and concepts"@en .
+
+# =============================================================================
+# Classes
+# =============================================================================
+
+res:Paper a owl:Class ;
+    rdfs:label "Paper"@en ;
+    rdfs:comment "A research paper or academic publication"@en .
+
+res:Claim a owl:Class ;
+    rdfs:label "Claim"@en ;
+    rdfs:comment "A verifiable assertion or finding from a paper"@en .
+
+res:Concept a owl:Class ;
+    rdfs:label "Concept"@en ;
+    rdfs:comment "A key concept, method, or topic in research"@en .
+
+res:Author a owl:Class ;
+    rdfs:label "Author"@en ;
+    rdfs:comment "An author of a research paper"@en .
+
+# =============================================================================
+# Object Properties (Relationships)
+# =============================================================================
+
+# Paper -> Claim
+res:makesClaim a owl:ObjectProperty ;
+    rdfs:label "makes claim"@en ;
+    rdfs:domain res:Paper ;
+    rdfs:range res:Claim .
+
+# Paper -> Concept
+res:discusses a owl:ObjectProperty ;
+    rdfs:label "discusses"@en ;
+    rdfs:domain res:Paper ;
+    rdfs:range res:Concept .
+
+# Paper -> Author
+res:hasAuthor a owl:ObjectProperty ;
+    rdfs:label "has author"@en ;
+    rdfs:domain res:Paper ;
+    rdfs:range res:Author .
+
+# Claim -> Concept
+res:relatedTo a owl:ObjectProperty ;
+    rdfs:label "related to"@en ;
+    rdfs:domain res:Claim ;
+    rdfs:range res:Concept .
+
+# Claim -> Claim (inter-claim relationships)
+res:extends a owl:ObjectProperty ;
+    rdfs:label "extends"@en ;
+    rdfs:comment "This claim builds upon or extends another claim"@en ;
+    rdfs:domain res:Claim ;
+    rdfs:range res:Claim .
+
+res:supports a owl:ObjectProperty ;
+    rdfs:label "supports"@en ;
+    rdfs:comment "This claim provides evidence supporting another claim"@en ;
+    rdfs:domain res:Claim ;
+    rdfs:range res:Claim .
+
+res:refutes a owl:ObjectProperty ;
+    rdfs:label "refutes"@en ;
+    rdfs:comment "This claim contradicts or disproves another claim"@en ;
+    rdfs:domain res:Claim ;
+    rdfs:range res:Claim .
+
+# Paper -> Paper (citations)
+res:cites a owl:ObjectProperty ;
+    rdfs:label "cites"@en ;
+    rdfs:domain res:Paper ;
+    rdfs:range res:Paper .
+
+# =============================================================================
+# Data Properties
+# =============================================================================
+
+# Paper properties
+res:arxivId a owl:DatatypeProperty ;
+    rdfs:label "arXiv ID"@en ;
+    rdfs:domain res:Paper ;
+    rdfs:range xsd:string .
+
+res:title a owl:DatatypeProperty ;
+    rdfs:label "title"@en ;
+    rdfs:domain res:Paper ;
+    rdfs:range xsd:string .
+
+res:abstract a owl:DatatypeProperty ;
+    rdfs:label "abstract"@en ;
+    rdfs:domain res:Paper ;
+    rdfs:range xsd:string .
+
+res:year a owl:DatatypeProperty ;
+    rdfs:label "publication year"@en ;
+    rdfs:domain res:Paper ;
+    rdfs:range xsd:integer .
+
+res:url a owl:DatatypeProperty ;
+    rdfs:label "URL"@en ;
+    rdfs:domain res:Paper ;
+    rdfs:range xsd:anyURI .
+
+res:pdfUrl a owl:DatatypeProperty ;
+    rdfs:label "PDF URL"@en ;
+    rdfs:domain res:Paper ;
+    rdfs:range xsd:anyURI .
+
+# Claim properties
+res:claimText a owl:DatatypeProperty ;
+    rdfs:label "claim text"@en ;
+    rdfs:domain res:Claim ;
+    rdfs:range xsd:string .
+
+res:confidence a owl:DatatypeProperty ;
+    rdfs:label "confidence score"@en ;
+    rdfs:domain res:Claim ;
+    rdfs:range xsd:float .
+
+res:verified a owl:DatatypeProperty ;
+    rdfs:label "verified"@en ;
+    rdfs:domain res:Claim ;
+    rdfs:range xsd:boolean .
+
+# Concept properties
+res:conceptName a owl:DatatypeProperty ;
+    rdfs:label "concept name"@en ;
+    rdfs:domain res:Concept ;
+    rdfs:range xsd:string .
+
+res:conceptDescription a owl:DatatypeProperty ;
+    rdfs:label "concept description"@en ;
+    rdfs:domain res:Concept ;
+    rdfs:range xsd:string .
+
+# Author properties
+res:authorName a owl:DatatypeProperty ;
+    rdfs:label "author name"@en ;
+    rdfs:domain res:Author ;
+    rdfs:range xsd:string .
+
+# Common properties
+res:createdAt a owl:DatatypeProperty ;
+    rdfs:label "created at"@en ;
+    rdfs:range xsd:dateTime .
+
+res:updatedAt a owl:DatatypeProperty ;
+    rdfs:label "updated at"@en ;
+    rdfs:range xsd:dateTime .
