@@ -1,0 +1,56 @@
+version: "3.8"
+
+services:
+  # GraphDB - Knowledge Graph Store (RDF/SPARQL)
+  graphdb:
+    image: ontotext/graphdb:10.6.0
+    container_name: researcher-graphdb
+    ports:
+      - "7200:7200"
+    volumes:
+      - graphdb_data:/opt/graphdb/home
+      - ./docker/graphdb/init:/opt/graphdb/init:ro
+    environment:
+      GDB_JAVA_OPTS: >-
+        -Xms1g -Xmx2g
+        -Dgraphdb.home=/opt/graphdb/home
+        -Dgraphdb.workbench.importDirectory=/opt/graphdb/init
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:7200/rest/repositories"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - researcher-network
+
+  # Qdrant - Vector Database (RAG)
+  qdrant:
+    image: qdrant/qdrant:v1.12.1
+    container_name: researcher-qdrant
+    ports:
+      - "6333:6333"  # HTTP API
+      - "6334:6334"  # gRPC
+    volumes:
+      - qdrant_data:/qdrant/storage
+    environment:
+      QDRANT__SERVICE__GRPC_PORT: 6334
+      QDRANT__SERVICE__HTTP_PORT: 6333
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:6333/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - researcher-network
+
+volumes:
+  graphdb_data:
+    name: researcher-graphdb-data
+  qdrant_data:
+    name: researcher-qdrant-data
+
+networks:
+  researcher-network:
+    name: researcher-network
+    driver: bridge

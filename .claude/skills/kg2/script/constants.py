@@ -71,7 +71,7 @@ GRAPHDB_API_URL = "https://kg.corca.ai/repositories"
 OPENAI_API_URL = "https://api.openai.com/v1/chat/completions"
 
 # --- Model Configuration ---
-DEFAULT_OPENAI_MODEL = "gpt-4o-mini"
+DEFAULT_OPENAI_MODEL = "gpt-5-mini"
 DEFAULT_EMBEDDING_MODEL = "text-embedding-3-small"
 EMBEDDING_DIMENSIONS = 1536  # text-embedding-3-small default
 
