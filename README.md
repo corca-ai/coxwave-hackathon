@@ -16,6 +16,11 @@ Clarifier 단독 실행:
 python3 clarifier_cli.py --query "Ambiguous short query"
 ```
 
+Writer 단독 실행:
+```bash
+python3 writer_cli.py --input path/to/writer_input.json
+```
+
 Visualizer 단독 실행:
 ```bash
 python3 visualizer_cli.py --input path/to/report.json
@@ -70,7 +75,7 @@ python3 visualizer_cli.py --input path/to/report.json
 
 ## 조건 충족 여부
 
-- [ ] OpenAI API 사용 (일부 에이전트만 적용)
+- [x] OpenAI API 사용 (일부 에이전트만 적용)
 - [ ] 멀티에이전트 구현
 - [x] 실행 가능한 데모 (Mock)
 
@@ -83,7 +88,7 @@ python3 visualizer_cli.py --input path/to/report.json
 | Searcher | Mock | placeholder |
 | Extractor | Mock | placeholder |
 | Verifier | Mock | placeholder |
-| Writer | Mock | placeholder |
+| Writer | Implemented (OpenAI Agents SDK) | 단독 CLI + 단위 테스트 |
 | Visualizer | Implemented (OpenAI Agents SDK) | 단독 CLI + 단위 테스트 |
 
 ## 아키텍처
@@ -158,6 +163,9 @@ python3 main.py --query "Your research question"
 
 # Clarifier 단독 실행
 python3 clarifier_cli.py --query "Your research question"
+
+# Writer 단독 실행
+python3 writer_cli.py --input path/to/writer_input.json
 ```
 
 `.env` 파일에 `OPENAI_API_KEY`를 넣어두면 자동으로 로드된다.
@@ -198,6 +206,9 @@ python3 -m unittest tests/test_clarifier.py
 # Visualizer 단위 테스트 (OPENAI_API_KEY가 없으면 자동으로 skip)
 python3 -m unittest tests/test_visualizer.py
 
+# Writer 단위 테스트 (OPENAI_API_KEY가 없으면 자동으로 skip)
+python3 -m unittest tests/test_writer.py
+
 # Demo E2E (mock)
 python3 -m unittest tests/test_demo_e2e.py
 ```
@@ -207,6 +218,12 @@ python3 -m unittest tests/test_demo_e2e.py
 ```bash
 # Clarifier 단독 확인
 python3 clarifier_cli.py --query "AI alignment"
+
+# Writer 단독 확인 (Writer input JSON 필요)
+python3 writer_cli.py --input path/to/writer_input.json
+
+# Writer 단독 확인 (테스트 fixture 사용)
+python3 writer_cli.py --input tests/fixtures/writer_input.json
 
 # Visualizer 단독 확인 (ReportOutput JSON 필요)
 python3 visualizer_cli.py --input path/to/report.json
