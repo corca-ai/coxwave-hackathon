@@ -5,6 +5,7 @@ import os
 import sys
 from datetime import datetime
 from pathlib import Path
+from typing import Optional
 
 from agents_impl import build_agents
 from env_loader import load_env
@@ -46,7 +47,7 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def resolve_max_samples(cli_value: int | None) -> int:
+def resolve_max_samples(cli_value: Optional[int]) -> int:
     env_value = os.getenv("EVAL_MAX_SAMPLES")
     max_samples: int
     if cli_value is not None:
