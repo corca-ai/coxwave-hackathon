@@ -147,6 +147,9 @@ python3 visualizer_cli.py --input path/to/report.json
 # 의존성 설치 (Clarifier 실사용 시 필요)
 pip install -r requirements.txt
 
+# DSPy 개발용 의존성 (선택)
+pip install -r requirements-dev.txt
+
 # API 키 설정 (환경변수 또는 .env 파일)
 export OPENAI_API_KEY=sk-...
 
@@ -180,6 +183,7 @@ def build_agents() -> DemoAgents:
 
 - [concepts.md](./concepts.md) - 지식 그래프/온톨로지 핵심 개념
 - [implementation.md](./implementation.md) - 구현 도구 및 기술 스택
+- [dspy.md](./docs/dspy.md) - DSPy 사용/최적화 가이드
 - [demo-scenario.md](./demo-scenario.md) - 데모 시나리오 상세
 - [meta-strategy.md](./meta-strategy.md) - 개발 전략
 - [problem-1pager-demo.md](./plans/002-demo/problem-1pager.md) - 데모 성공 기준/측정
