@@ -30,3 +30,8 @@ No such file or directory (os error 2)
 
 ---
 
+dspy는 requirements.txt 에 없는거야? dev dependencies 같은 걸로라도 추가해야 하는 거 아닌가? -> dev로 추가
+
+---
+
+phase 2에서 어떤 작업이 남았지? visualizer에 대해서도 추가됐으면 좋겠는데.
