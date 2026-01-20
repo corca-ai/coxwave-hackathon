@@ -375,3 +375,16 @@ python server.py
 ```bash
 uvicorn server:app --reload --port 8000
 ```
+
+### 프론트엔드 연동
+프론트에서 서버를 직접 호출하려면 `NEXT_PUBLIC_API_BASE`를 설정한다.
+
+```bash
+# frontend/.env 또는 환경변수로 지정
+NEXT_PUBLIC_API_BASE=http://localhost:8000
+```
+
+간단 스모크 테스트:
+```bash
+python scripts/server_smoke.py
+```

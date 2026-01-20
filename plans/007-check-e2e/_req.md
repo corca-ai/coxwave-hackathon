@@ -67,6 +67,7 @@
 - 간단 스트림 확인 (SSE):
   - `curl -N -X POST http://localhost:8000/api/run/stream -H "Content-Type: application/json" -d '{"query":"Graph RAG for scientific papers"}'`
  - 프론트 연동: `NEXT_PUBLIC_API_BASE`로 서버 주소 오버라이드 가능 (기본: `http://localhost:8000`)
+ - 스모크 스크립트: `python scripts/server_smoke.py`
 
 ### 수동 테스트 시나리오
 1. **/health 확인**
