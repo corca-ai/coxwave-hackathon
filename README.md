@@ -65,7 +65,9 @@ npm install
 npm run dev
 ```
 
-브라우저에서 `http://localhost:3000`을 열면 된다. 기본 데모 데이터는 `frontend/public/demo/`를 사용하며, Run Bundle JSON과 stream NDJSON을 업로드해서 교체할 수 있다.
+브라우저에서 `http://localhost:3000`을 열면 된다. 메인 페이지는 Clarifier 대화 UI이며, 데모/관측 UI는 `http://localhost:3000/demo`에서 제공한다.
+기본 데모 데이터는 `frontend/public/demo/`를 사용하며, Run Bundle JSON과 stream NDJSON을 업로드해서 교체할 수 있다.
+서버 연동이 필요하면 `NEXT_PUBLIC_API_BASE=http://localhost:8000`을 설정한다.
 Vercel 배포 시 Root Directory는 `frontend/`, Build Command는 `npm run build`, Output Directory는 `.next` 기본값을 사용한다.
 
 ## 문제 정의

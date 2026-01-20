@@ -1,5 +1,5 @@
-import AppClient from "../components/app-client";
+import ClarifyClient from "../components/clarify-client";
 
 export default function Page() {
-  return <AppClient />;
+  return <ClarifyClient />;
 }

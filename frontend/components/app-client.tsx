@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { GraphNodeData } from "../lib/graph";
@@ -413,6 +414,9 @@ export default function AppClient() {
             <button className="button primary" type="button" onClick={loadSample}>
               Load demo bundle
             </button>
+            <Link className="button" href="/">
+              Home
+            </Link>
             <label className="button input-file" aria-label="Load run bundle">
               Load run bundle
               <input
