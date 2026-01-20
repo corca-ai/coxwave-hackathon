@@ -144,6 +144,15 @@ def _clarifier_examples(samples: list[dict[str, Any]]) -> list[Any]:
     return examples
 
 
+def _clarifier_samples(samples: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    valid: list[dict[str, Any]] = []
+    for sample in samples:
+        query = sample.get("query")
+        if isinstance(query, str):
+            valid.append(sample)
+    return valid
+
+
 def _visualizer_examples(samples: list[dict[str, Any]]) -> list[Any]:
     dspy = require_dspy()
     examples: list[Any] = []
@@ -156,6 +165,15 @@ def _visualizer_examples(samples: list[dict[str, Any]]) -> list[Any]:
         example = dspy.Example(report_json=report_json, expect=expect).with_inputs("report_json")
         examples.append(example)
     return examples
+
+
+def _visualizer_samples(samples: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    valid: list[dict[str, Any]] = []
+    for sample in samples:
+        report = sample.get("report")
+        if isinstance(report, dict):
+            valid.append(sample)
+    return valid
 
 
 def _clarifier_metric(example: Any, prediction: Any) -> float:
@@ -218,13 +236,15 @@ def main() -> int:
     if args.agent == "clarifier":
         from .clarifier import ClarifierModule
 
-        examples = _clarifier_examples(samples)
+        valid_samples = _clarifier_samples(samples)
+        examples = _clarifier_examples(valid_samples)
         metric = _clarifier_metric
         module = ClarifierModule()
     else:
         from .visualizer import VisualizerModule
 
-        examples = _visualizer_examples(samples)
+        valid_samples = _visualizer_samples(samples)
+        examples = _visualizer_examples(valid_samples)
         metric = _visualizer_metric
         module = VisualizerModule()
 
@@ -234,8 +254,16 @@ def main() -> int:
 
     train_count = _resolve_bound(args.train_samples, "DSPY_TRAIN_SAMPLES", 4)
     eval_count = _resolve_bound(args.eval_samples, "DSPY_EVAL_SAMPLES", 6)
+    total_samples = len(valid_samples)
+    if train_count > total_samples:
+        train_count = total_samples
+    remaining = max(0, total_samples - train_count)
+    if eval_count > remaining:
+        eval_count = remaining
 
     trainset, evalset = _split_examples(examples, train_count, eval_count)
+    train_samples = valid_samples[:train_count]
+    eval_samples = valid_samples[train_count : train_count + eval_count]
 
     max_rounds = _resolve_bound(args.max_rounds, "DSPY_OPT_MAX_ROUNDS", 3)
     max_labeled = _resolve_bound(args.max_labeled_demos, "DSPY_OPT_MAX_LABELED_DEMOS", 4)
@@ -253,13 +281,15 @@ def main() -> int:
         spec,
         baseline_agents,
         dataset_path,
-        max_samples=eval_count,
+        max_samples=len(eval_samples),
+        samples=eval_samples,
     )
     optimized_summary, optimized_results = run_eval(
         spec,
         optimized_agents,
         dataset_path,
-        max_samples=eval_count,
+        max_samples=len(eval_samples),
+        samples=eval_samples,
     )
 
     delta = round(
@@ -271,8 +301,8 @@ def main() -> int:
     report = {
         "agent": args.agent,
         "dataset": dataset_path,
-        "train_samples": len(trainset),
-        "eval_samples": eval_count,
+        "train_samples": len(train_samples),
+        "eval_samples": len(eval_samples),
         "baseline": baseline_summary,
         "optimized": optimized_summary,
         "delta": delta,
