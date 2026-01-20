@@ -5,7 +5,7 @@
 ## 🎥 데모
 
 - **시연 영상**: https://screen.studio/share/ZcuLHsDp
-- **라이브 데모**: [여기에 배포된 URL이 있다면 넣어주세요]
+- **라이브 데모**: coxwave-hackathon-sand.vercel.app
 
 **(스크린샷이나 GIF가 있다면 여기에 추가하여 시각적 효과를 높이세요)**
 
@@ -18,6 +18,7 @@
 - **낮은 신뢰성**: LLM의 환각(Hallucination) 현상으로 인해 전문적인 업무에 바로 적용하기 어렵습니다.
 
 **타겟 유저 (B2B/Enterprise)**:
+
 - **R&D 연구원**: 선행 기술 조사 시간을 5일 -> 1시간으로 단축
 
 ## 솔루션
@@ -72,16 +73,16 @@
 
 ## 에이전트 구현 현황
 
-| Agent | Status | Notes |
-| --- | --- | --- |
-| Orchestrator | Implemented (state-based) | `main.py`의 Orchestrator loop (live 모드에서 실제 에이전트 호출) |
-| Clarifier | Implemented (Agent SDK + DSPy) | 단독 CLI + 단위 테스트 + DSPy CLI |
-| Planner | Implemented (Agent SDK + DSPy) | `src/agent/plan` + DSPy CLI |
-| Searcher | Implemented (Agent SDK + DSPy) | `src/agent/search` + DSPy CLI |
-| Extractor | Implemented (Agent SDK + DSPy) | `src/agent/extract/runner.py` + DSPy CLI |
-| Verifier | Implemented (Standalone CLI + DSPy) | `src/agent/verify/runner.py` + DSPy CLI |
-| Writer | Implemented (Agent SDK + DSPy) | 단독 CLI + DSPy CLI |
-| Visualizer | Implemented (Agent SDK + DSPy) | 단독 CLI + DSPy CLI |
+| Agent        | Status                              | Notes                                                            |
+| ------------ | ----------------------------------- | ---------------------------------------------------------------- |
+| Orchestrator | Implemented (state-based)           | `main.py`의 Orchestrator loop (live 모드에서 실제 에이전트 호출) |
+| Clarifier    | Implemented (Agent SDK + DSPy)      | 단독 CLI + 단위 테스트 + DSPy CLI                                |
+| Planner      | Implemented (Agent SDK + DSPy)      | `src/agent/plan` + DSPy CLI                                      |
+| Searcher     | Implemented (Agent SDK + DSPy)      | `src/agent/search` + DSPy CLI                                    |
+| Extractor    | Implemented (Agent SDK + DSPy)      | `src/agent/extract/runner.py` + DSPy CLI                         |
+| Verifier     | Implemented (Standalone CLI + DSPy) | `src/agent/verify/runner.py` + DSPy CLI                          |
+| Writer       | Implemented (Agent SDK + DSPy)      | 단독 CLI + DSPy CLI                                              |
+| Visualizer   | Implemented (Agent SDK + DSPy)      | 단독 CLI + DSPy CLI                                              |
 
 ## 아키텍처
 
@@ -308,33 +309,37 @@ python3 evals_cli.py --agent clarifier --engine dspy --dataset evals/datasets/cl
 
 ## 팀원
 
-| 이름 | 역할 | Github |
-| ---- | ---- | ------ |
-| [팀원1 이름] | PM / Backend | @github_id |
-| [팀원2 이름] | Frontend / Design | @github_id |
-| [팀원3 이름] | AI Research / Modeling | @github_id |
+| 이름   | 역할              |
+| ------ | ----------------- |
+| 하동훈 | PM / Backend      |
+| 배휘동 | Frontend / Design |
 
 ---
-&copy; 2026 Research Navigator Team. All Rights Reserved.
 
+&copy; 2026 Research Navigator Team. All Rights Reserved.
 
 ## 서버 띄우기
 
 ### 의존성 설치
+
 ```bash
 pip install fastapi uvicorn[standard] sse-starlette
 ```
 
 ### 서버 실행
+
 ```bash
 python server.py
 ```
+
 또는
+
 ```bash
 uvicorn server:app --reload --port 8000
 ```
 
 ### 프론트엔드 연동
+
 프론트에서 서버를 직접 호출하려면 `NEXT_PUBLIC_API_BASE`를 설정한다.
 
 ```bash
@@ -343,6 +348,7 @@ NEXT_PUBLIC_API_BASE=http://localhost:8000
 ```
 
 간단 스모크 테스트:
+
 ```bash
 python scripts/server_smoke.py
 ```
