@@ -221,6 +221,21 @@ python3 main.py --mock --query "Investigate RAG and hallucination in legal QA"
 테스트 실행 로그는 `tests/_artifacts/`에 저장된다.
 E2E 테스트는 콘솔에도 전체 로그를 출력한다.
 
+## 평가(Evals)
+
+로컬 평가 하네스는 에이전트별 JSONL 데이터셋을 사용한다. 입력/출력 payload는 항상 출력된다.
+
+```bash
+# Clarifier 평가 (실제 API 사용)
+python3 evals_cli.py --agent clarifier --dataset evals/datasets/clarifier.jsonl
+
+# Mock 에이전트로 평가 (API 키 불필요)
+python3 evals_cli.py --agent clarifier --dataset evals/datasets/clarifier.jsonl --mock
+```
+
+- `EVAL_MAX_SAMPLES`로 평가 샘플 상한을 설정할 수 있으며, `--max-samples`로 오버라이드한다.
+- 결과 로그는 기본적으로 `evals/_artifacts/`에 저장되며, `EVAL_ARTIFACT_DIR`로 변경 가능하다.
+
 ## 향후 계획
 
 - [ ] 지식 그래프 스키마 확정 및 초기 데이터 수집
