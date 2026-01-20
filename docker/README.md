@@ -12,7 +12,7 @@ Research Navigator의 인프라 구성요소를 관리합니다.
 ## Quick Start
 
 ```bash
-# 인프라 시작
+# 앱 + 인프라 시작
 docker compose up -d
 
 # 상태 확인
@@ -27,12 +27,16 @@ docker compose down
 
 ## 서비스 접속
 
+### FastAPI API
+- URL: http://localhost:8000
+- Health: http://localhost:8000/health
+
 ### GraphDB Workbench
-- URL: http://localhost:7200
+- URL: http://localhost:7200 (localhost only)
 - Repository: `researcher` (수동 생성 필요)
 
 ### Qdrant Dashboard
-- URL: http://localhost:6333/dashboard
+- URL: http://localhost:6333/dashboard (localhost only)
 
 ## Repository 초기 설정
 
@@ -111,6 +115,16 @@ cp .env.docker .env
 - `GRAPHDB_SPARQL_ENDPOINT`: SPARQL 쿼리 엔드포인트
 - `QDRANT_URL`: Qdrant HTTP API URL
 - `QDRANT_COLLECTION_NAME`: 벡터 컬렉션 이름
+
+## 배포 팁 (Render)
+
+Render 사용 시:
+
+1) Docker 웹서비스로 배포
+2) `PORT` 환경변수는 Render가 자동 주입 (기본값 8000 유지 가능)
+3) `.env`에 OPENAI_API_KEY 등 필요한 키 설정
+
+GraphDB/Qdrant는 별도 인스턴스가 필요합니다. Render에서는 별도 서비스로 올리거나, EC2에서 함께 띄우는 방식을 권장합니다.
 
 ## 트러블슈팅
 
