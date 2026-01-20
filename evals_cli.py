@@ -3,11 +3,10 @@ from __future__ import annotations
 import argparse
 import os
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
-from agents_impl import build_agents
 from env_loader import load_env
 from evals.observability import write_json_artifact
 from evals.registry import get_spec, list_specs
@@ -65,6 +64,18 @@ def resolve_max_samples(cli_value: Optional[int]) -> int:
     return max_samples
 
 
+def load_agents(use_mock: bool):
+    if use_mock:
+        return build_mock_agents()
+    try:
+        from agents_impl import build_agents
+    except ImportError as exc:
+        raise RuntimeError(
+            "Failed to import agents_impl. Install dependencies or run with --mock."
+        ) from exc
+    return build_agents()
+
+
 def main() -> int:
     load_env(
         keys=[
@@ -83,7 +94,11 @@ def main() -> int:
         print(f"Dataset not found: {dataset_path}")
         return 1
 
-    agents = build_mock_agents() if args.mock else build_agents()
+    try:
+        agents = load_agents(args.mock)
+    except RuntimeError as exc:
+        print(str(exc))
+        return 1
     max_samples = resolve_max_samples(args.max_samples)
 
     summary, results = run_eval(
@@ -93,7 +108,7 @@ def main() -> int:
         max_samples=max_samples,
     )
 
-    timestamp = datetime.utcnow().strftime("%Y%m%d-%H%M%S")
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
     tag = args.run_tag or timestamp
     artifact_name = f"eval-{spec.name}-{tag}.json"
     artifact = write_json_artifact(
