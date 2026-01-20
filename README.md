@@ -10,7 +10,7 @@ CLI 데모 (Mock):
 python3 main.py --mock --query "Which techniques improve long-context reliability?"
 ```
 
-실제 에이전트 연결 시 `agents_impl.py`에 `build_agents()` 구현이 필요하다.
+실제 에이전트 연결 시 `agents_impl.py`의 `build_agents()`에서 각 에이전트를 연결해야 한다.
 Clarifier 단독 실행:
 ```bash
 python3 clarifier_cli.py --query "Ambiguous short query"
@@ -98,8 +98,8 @@ python -m src.runner \
 
 ## 조건 충족 여부
 
-- [x] OpenAI API 사용 (일부 에이전트만 적용)
-- [ ] 멀티에이전트 구현
+- [x] OpenAI API 사용 (Clarifier/Visualizer, Search/Verifier Agent SDK)
+- [ ] 멀티에이전트 구현 (E2E 오케스트레이션은 mock 기반)
 - [x] 실행 가능한 데모 (Mock)
 
 ## 에이전트 구현 현황

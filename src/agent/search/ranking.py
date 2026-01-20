@@ -25,7 +25,7 @@ def calculate_score(candidate: Candidate, keywords: list[str]) -> float:
 
     current_year = datetime.now().year
     years_old = current_year - candidate.year
-    recency_score = max(0, 1 - (years_old / 10))
+    recency_score = max(0.0, min(1.0, 1 - (years_old / 10)))
 
     return round((keyword_score * 0.6) + (recency_score * 0.4), 4)
 
