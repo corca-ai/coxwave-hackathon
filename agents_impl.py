@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any, Optional
@@ -13,6 +14,7 @@ from main import (
     DemoAgents,
     ExtractOutput,
     Claim as MainClaim,
+    MockOrchestrator,
     MockPlanner,
     MockWriter,
     SearchOutput,
@@ -23,6 +25,10 @@ from main import (
     VisualOutput,
 )
 from env_loader import load_env
+
+# Add src/ to path for agent imports
+sys.path.insert(0, str(Path(__file__).parent / "src"))
+
 from agent.search.agent import search_agent
 from agent.search.schemas import (
     Candidate,
@@ -448,6 +454,7 @@ def _normalize_extractor_result(
         graph=graph,
     )
 
+
 def _to_verify_extractor_result(result: ExtractorResult) -> VerifyExtractorResult:
     paper_cards = [
         VerifyPaperCard(
@@ -494,6 +501,8 @@ def _confidence_from_status(status: str) -> float:
         "unsupported": 0.1,
         "conflicting": 0.2,
     }.get(status, 0.0)
+
+
 class OpenAIVisualizer:
     def __init__(self, model: Optional[str] = None, temperature: Optional[float] = None) -> None:
         load_env(keys=["OPENAI_API_KEY", "OPENAI_MODEL", "OPENAI_TEMPERATURE"])
@@ -693,12 +702,25 @@ def build_agents() -> DemoAgents:
             ) from exc
         visualizer = DSPyVisualizer()
 
+    planner = MockPlanner()
+    searcher = OpenAISearcher()
+    extractor = OpenAIExtractor()
+    verifier = OpenAIVerifier()
+    writer = MockWriter()
+
     return DemoAgents(
         clarifier=clarifier,
-        planner=MockPlanner(),
-        searcher=OpenAISearcher(),
-        extractor=OpenAIExtractor(),
-        verifier=OpenAIVerifier(),
-        writer=MockWriter(),
+        planner=planner,
+        searcher=searcher,
+        extractor=extractor,
+        verifier=verifier,
+        writer=writer,
         visualizer=visualizer,
+        orchestrator=MockOrchestrator(
+            planner=planner,
+            searcher=searcher,
+            extractor=extractor,
+            verifier=verifier,
+            writer=writer,
+        ),
     )
