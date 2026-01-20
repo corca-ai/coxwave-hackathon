@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import json
-from dataclasses import replace
-from typing import Any, Optional
+from dataclasses import asdict, replace
+from typing import Any, AsyncGenerator, Optional
 
 from .utils import configure_dspy, dspy, require_dspy, resolve_dspy_settings
 from main import VisualComponent, VisualOutput
+from stream_events import StreamEvent, StreamEventTypes
 
 
 def _coerce_str_list(value: Any) -> list[str]:
@@ -231,3 +232,29 @@ class DSPyVisualizer:
         report = _parse_report_context(context)
         prediction = self._module(report_json=json.dumps(report, ensure_ascii=True))
         return prediction_to_output(prediction, report)
+
+    async def run_stream(self, context: str) -> AsyncGenerator[StreamEvent, None]:
+        seq = 0
+        yield StreamEvent(
+            type=StreamEventTypes.AGENT_START,
+            payload={"input": context},
+            agent="visualizer",
+            sequence=seq,
+        )
+        seq += 1
+        try:
+            output = self.run(context)
+            yield StreamEvent(
+                type=StreamEventTypes.AGENT_COMPLETE,
+                payload={"output": asdict(output)},
+                agent="visualizer",
+                sequence=seq,
+            )
+        except Exception as exc:
+            yield StreamEvent(
+                type=StreamEventTypes.ERROR,
+                payload={"error": str(exc), "error_type": type(exc).__name__},
+                agent="visualizer",
+                sequence=seq,
+            )
+            raise

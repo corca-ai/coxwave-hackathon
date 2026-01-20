@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import json
-from typing import Any, Optional
+from dataclasses import asdict
+from typing import Any, AsyncGenerator, Optional
 
 from main import NextAction, Verification, VerifyOutput
 
 from .utils import configure_dspy, dspy, require_dspy, resolve_dspy_settings
+from stream_events import StreamEvent, StreamEventTypes
 
 
 def _coerce_list(value: Any) -> list[str]:
@@ -197,3 +199,30 @@ class DSPyVerifier:
         payload = _parse_extract(context)
         prediction = self._module(extract_json=json.dumps(payload, ensure_ascii=True))
         return prediction_to_output(prediction, payload)
+
+    async def run_stream(self, context: str) -> AsyncGenerator[StreamEvent, None]:
+        seq = 0
+        yield StreamEvent(
+            type=StreamEventTypes.AGENT_START,
+            payload={"input": context},
+            agent="verifier",
+            sequence=seq,
+        )
+        seq += 1
+        try:
+            output = self.run(context)
+            yield StreamEvent(
+                type=StreamEventTypes.AGENT_COMPLETE,
+                payload={"output": asdict(output)},
+                agent="verifier",
+                stage="verify",
+                sequence=seq,
+            )
+        except Exception as exc:
+            yield StreamEvent(
+                type=StreamEventTypes.ERROR,
+                payload={"error": str(exc), "error_type": type(exc).__name__},
+                agent="verifier",
+                sequence=seq,
+            )
+            raise
