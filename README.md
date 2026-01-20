@@ -4,7 +4,12 @@
 
 ## 데모
 
-(데모 URL 또는 영상 링크 - 구현 후 추가)
+CLI 데모 (Mock):
+```bash
+python3 main.py --mock --query "Which techniques improve long-context reliability?"
+```
+
+실제 에이전트 연결 시 `agents_impl.py`에 `build_agents()` 구현이 필요하다.
 
 ## 문제 정의
 
@@ -34,7 +39,7 @@
 
 - [ ] OpenAI API 사용
 - [ ] 멀티에이전트 구현
-- [ ] 실행 가능한 데모
+- [x] 실행 가능한 데모 (Mock)
 
 ## 아키텍처
 
@@ -94,15 +99,23 @@
 ## 설치 및 실행
 
 ```bash
-# 환경 설정
-cp .env.example .env
-# API 키 입력: OPENAI_API_KEY, GRAPHDB_ENDPOINT
+# Mock 실행 (외부 의존성 없음)
+python3 main.py --mock --query "Your research question"
 
-# 의존성 설치
-pip install -r requirements.txt
+# 실제 에이전트 연결 후 실행
+python3 main.py --query "Your research question"
+```
 
-# 실행
-python main.py
+### agents_impl.py 인터페이스
+
+`agents_impl.py`에 아래 형태로 에이전트를 구성한다. (예시는 요약)
+
+```python
+from main import DemoAgents
+
+def build_agents() -> DemoAgents:
+    # 각 에이전트는 run(context: str) -> OutputType 를 구현
+    ...
 ```
 
 ## 문서
@@ -111,6 +124,7 @@ python main.py
 - [implementation.md](./implementation.md) - 구현 도구 및 기술 스택
 - [demo-scenario.md](./demo-scenario.md) - 데모 시나리오 상세
 - [meta-strategy.md](./meta-strategy.md) - 개발 전략
+- [problem-1pager-demo.md](./plans/002-demo/problem-1pager.md) - 데모 성공 기준/측정
 - [retrospective.md](./retrospective.md) - 기존 시스템 구축 회고
 - [kg2 스킬 문서](../.claude/skills/kg2/SKILL.md) - 그래프 운영 규칙/스키마 정본
 
