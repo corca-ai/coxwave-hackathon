@@ -64,3 +64,21 @@ yarn-error.log*
 docs/CLAUDE.md
 openai-agents-python-docs/CLAUDE.md
 requirements/CLAUDE.md
+*.pyo
+*.pyd
+*.so
+*.egg-info/
+.venv/
+venv/
+.env
+
+# Build artifacts
+build/
+dist/
+
+# OS
+.DS_Store
+
+# Editor
+.vscode/
+.idea/
