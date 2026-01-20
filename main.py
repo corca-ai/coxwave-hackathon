@@ -158,6 +158,9 @@ class DemoAgents:
     orchestrator: Orchestrator
 
 
+AUTO_MODE = False
+
+
 def print_section(title: str) -> None:
     bar = "=" * len(title)
     print(f"\n{title}\n{bar}")
@@ -170,6 +173,9 @@ def print_json(label: str, data: object) -> None:
 
 
 def ask(prompt: str) -> str:
+    if AUTO_MODE:
+        print(f"{prompt} [AUTO: skip]")
+        return "skip"
     try:
         return input(prompt).strip()
     except EOFError:
@@ -177,10 +183,14 @@ def ask(prompt: str) -> str:
 
 
 def ask_yes_no(prompt: str, default_no: bool = True) -> bool:
+    if AUTO_MODE:
+        print(f"{prompt} [AUTO: Yes]")
+        return True
     raw = ask(prompt)
     if not raw:
         return not default_no
     return raw.lower() in {"y", "yes"}
+
 
 
 class MockClarifier:
@@ -317,6 +327,8 @@ class MockVisualizer:
         )
 
 
+import time
+
 class MockOrchestrator:
     def __init__(
         self,
@@ -336,13 +348,36 @@ class MockOrchestrator:
 
     def _log(self, section: str, label: str, data: object) -> None:
         if self.verbose:
-            print_section(section)
+            print_section(f"{section} [{time.strftime('%H:%M:%S')}]")
             print_json(label, data)
 
     def run(self, clarify_context: str, config: OrchestratorConfig) -> OrchestratorOutput:
+        start_time = time.time()
+        print(f"[Orchestrator] Started at {time.strftime('%H:%M:%S')}")
+
         # Plan
         plan_out = self.planner.run(clarify_context)
         self._log("Plan", "Plan output", plan_out)
+
+        # Plan Approval
+        if config.require_plan_approval:
+            if not ask_yes_no("\nApprove this plan? (Y/n) ", default_no=False):
+                print("Plan rejected by user. Aborting.")
+                # In a real agent loop, we would ask for feedback and re-plan.
+                # For this mock orchestrator, we exit or return early.
+                # Returning a dummy report to avoid crashing run_demo.
+                return OrchestratorOutput(
+                    report=ReportOutput(
+                        title="Aborted",
+                        executive_summary="Plan rejected by user.",
+                        key_findings=[],
+                        limitations=[],
+                        citations=[],
+                        suggested_visuals=[],
+                    ),
+                    loops_used=0,
+                    plan_approved=False,
+                )
 
         loops_used = 0
         search_context = json.dumps({"plan": asdict(plan_out), "clarifier": json.loads(clarify_context)})
@@ -581,16 +616,34 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help="Max clarifier rounds (overrides DEMO_MAX_CLARIFY_ROUNDS). Example: --clarify-rounds 3",
     )
+    parser.add_argument(
+        "--auto",
+        action="store_true",
+        help="Run in non-interactive mode (auto-approve plans, skip clarifications)",
+    )
     return parser.parse_args()
 
 
 def main() -> int:
     load_env(keys=["DEMO_MAX_CLARIFY_ROUNDS"])
     args = parse_args()
-    query = args.query or ask("Research question: ")
+
+    global AUTO_MODE
+    AUTO_MODE = args.auto
+
+    query = args.query
+    if not query and not AUTO_MODE:
+        query = ask("Research question: ")
+    
     if not query:
-        print("No query provided.")
-        return 1
+        # Fallback for auto mode if no query provided
+        if AUTO_MODE:
+             query = "Agentic workflows for automated code refactoring"
+             print(f"No query provided in auto mode. Using default: {query}")
+        else:
+            print("No query provided.")
+            return 1
+
     agents = load_agents(args.mock)
     env_rounds = os.getenv("DEMO_MAX_CLARIFY_ROUNDS")
     if args.clarify_rounds is not None:
