@@ -65,10 +65,21 @@ class Verification:
 
 
 @dataclass
+class NextAction:
+    """Action recommended by Verifier for orchestrator routing."""
+    action_type: str  # search_expand, search_more_papers, reextract, stop
+    priority: int = 1
+    why: str = ""
+    suggested_queries: List[str] = field(default_factory=list)
+    target_concepts: List[str] = field(default_factory=list)
+
+
+@dataclass
 class VerifyOutput:
     verdicts: List[Verification] = field(default_factory=list)
     is_enough: bool = False
     next_search_queries: List[str] = field(default_factory=list)
+    next_actions: List[NextAction] = field(default_factory=list)
 
 
 @dataclass
@@ -318,6 +329,8 @@ class MockVisualizer:
 
 
 class MockOrchestrator:
+    """Orchestrator with action-based routing and state accumulation."""
+
     def __init__(
         self,
         planner: Planner,
@@ -339,53 +352,149 @@ class MockOrchestrator:
             print_section(section)
             print_json(label, data)
 
+    def _get_primary_action(self, verify_out: VerifyOutput) -> Optional[NextAction]:
+        """Get the highest priority action from next_actions."""
+        if not verify_out.next_actions:
+            return None
+        # Sort by priority (lower = higher priority) and return first
+        sorted_actions = sorted(verify_out.next_actions, key=lambda a: a.priority)
+        return sorted_actions[0] if sorted_actions else None
+
     def run(self, clarify_context: str, config: OrchestratorConfig) -> OrchestratorOutput:
-        # Plan
+        # === PLAN PHASE ===
         plan_out = self.planner.run(clarify_context)
         self._log("Plan", "Plan output", plan_out)
 
+        # === STATE ACCUMULATION ===
+        accumulated_sources: List[Source] = []
+        accumulated_verdicts: List[Verification] = []
         loops_used = 0
-        search_context = json.dumps({"plan": asdict(plan_out), "clarifier": json.loads(clarify_context)})
-        verify_out: Optional[VerifyOutput] = None
-        search_out: Optional[SearchOutput] = None
 
-        # Search-Extract-Verify loop
+        # Initial context
+        clarifier_data = json.loads(clarify_context)
+        search_context = json.dumps({"plan": asdict(plan_out), "clarifier": clarifier_data})
+
+        # Current state
+        search_out: Optional[SearchOutput] = None
+        extract_out: Optional[ExtractOutput] = None
+        verify_out: Optional[VerifyOutput] = None
+
+        # === RESEARCH LOOP WITH ACTION-BASED ROUTING ===
+        next_step = "search"  # Start with search
+
         for loop_idx in range(config.max_loops):
             loops_used = loop_idx + 1
             if self.verbose:
                 print_section(f"Research Loop {loops_used}/{config.max_loops}")
 
-            search_out = self.searcher.run(search_context)
-            self._log("Search", "Search results", search_out)
+            # === SEARCH (if needed) ===
+            if next_step in ("search", "search_expand", "search_more_papers"):
+                search_out = self.searcher.run(search_context)
+                self._log("Search", "Search results", search_out)
 
-            extract_out = self.extractor.run(json.dumps(asdict(search_out)))
-            self._log("Extract", "Extracted claims", extract_out)
+                # Accumulate sources (avoid duplicates by source_id)
+                existing_ids = {s.source_id for s in accumulated_sources}
+                for source in search_out.sources:
+                    if source.source_id not in existing_ids:
+                        accumulated_sources.append(source)
+                        existing_ids.add(source.source_id)
 
-            verify_out = self.verifier.run(json.dumps(asdict(extract_out)))
-            self._log("Verify", "Verification", verify_out)
+                if self.verbose:
+                    print(f"Accumulated sources: {len(accumulated_sources)}")
 
-            if verify_out.is_enough:
+            # === EXTRACT ===
+            if next_step in ("search", "search_expand", "search_more_papers", "reextract"):
+                # Use accumulated sources for extraction
+                extract_input = SearchOutput(
+                    refined_query=search_out.refined_query if search_out else "",
+                    sources=accumulated_sources,
+                )
+                extract_out = self.extractor.run(json.dumps(asdict(extract_input)))
+                self._log("Extract", "Extracted claims", extract_out)
+
+            # === VERIFY ===
+            if extract_out:
+                verify_out = self.verifier.run(json.dumps(asdict(extract_out)))
+                self._log("Verify", "Verification", verify_out)
+
+                # Accumulate supported/weak verdicts (not unsupported)
+                for verdict in verify_out.verdicts:
+                    if verdict.verdict.lower() in ("supported", "weak"):
+                        # Avoid duplicates
+                        if not any(v.claim == verdict.claim for v in accumulated_verdicts):
+                            accumulated_verdicts.append(verdict)
+
+                if self.verbose:
+                    print(f"Accumulated verdicts: {len(accumulated_verdicts)} (supported/weak)")
+
+            # === CHECK QUALITY GATE ===
+            if verify_out and verify_out.is_enough:
                 if self.verbose:
                     print("Quality gate PASSED.")
                 break
 
-            if self.verbose:
-                print(f"Quality gate FAILED. Next queries: {verify_out.next_search_queries}")
+            # === ACTION-BASED ROUTING ===
+            primary_action = self._get_primary_action(verify_out) if verify_out else None
 
-            # Prepare next search context with next_search_queries
-            if verify_out.next_search_queries:
+            if primary_action:
+                action_type = primary_action.action_type
+                if self.verbose:
+                    print(f"Action: {action_type} (priority={primary_action.priority})")
+                    print(f"  Why: {primary_action.why}")
+
+                if action_type == "stop":
+                    if self.verbose:
+                        print("Verifier requested STOP. Exiting loop.")
+                    break
+
+                elif action_type == "reextract":
+                    # Skip search, just re-extract with existing sources
+                    next_step = "reextract"
+                    if self.verbose:
+                        print("Re-extracting with existing sources...")
+                    continue
+
+                elif action_type in ("search_expand", "search_more_papers"):
+                    next_step = action_type
+                    # Build search context with action-specific guidance
+                    search_context = json.dumps({
+                        "plan": asdict(plan_out),
+                        "clarifier": clarifier_data,
+                        "previous_sources": [asdict(s) for s in accumulated_sources[-5:]],  # Last 5 sources
+                        "action_type": action_type,
+                        "target_concepts": primary_action.target_concepts,
+                        "suggested_queries": primary_action.suggested_queries,
+                        "next_queries": verify_out.next_search_queries if verify_out else [],
+                    })
+                    continue
+
+            # Default: use next_search_queries for new search
+            if verify_out and verify_out.next_search_queries:
+                if self.verbose:
+                    print(f"Quality gate FAILED. Next queries: {verify_out.next_search_queries}")
+                next_step = "search"
                 search_context = json.dumps({
                     "plan": asdict(plan_out),
-                    "previous_search": asdict(search_out),
+                    "clarifier": clarifier_data,
+                    "previous_sources": [asdict(s) for s in accumulated_sources[-5:]],
                     "next_queries": verify_out.next_search_queries,
                 })
+            else:
+                # No guidance, continue with full search
+                next_step = "search"
 
-        # Write
-        supported = [v for v in (verify_out.verdicts if verify_out else []) if v.verdict.lower() == "supported"]
+        # === WRITE PHASE ===
+        # Use accumulated verdicts for final report
+        supported = [v for v in accumulated_verdicts if v.verdict.lower() == "supported"]
+        weak = [v for v in accumulated_verdicts if v.verdict.lower() == "weak"]
+
         writer_context = json.dumps({
-            "clarifier": json.loads(clarify_context),
+            "clarifier": clarifier_data,
             "plan": asdict(plan_out),
             "supported_claims": [asdict(v) for v in supported],
+            "weak_claims": [asdict(v) for v in weak],
+            "total_sources": len(accumulated_sources),
+            "loops_used": loops_used,
         })
         report_out = self.writer.run(writer_context)
         self._log("Write", "Report", report_out)

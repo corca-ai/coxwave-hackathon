@@ -16,6 +16,7 @@ from main import (
     Claim as MainClaim,
     MockOrchestrator,
     MockWriter,
+    NextAction as MainNextAction,
     PlanOutput,
     MockPlanner,
     SearchOutput,
@@ -388,10 +389,27 @@ class OpenAIVerifier:
                 if query not in queries:
                     queries.append(query)
 
+        # Convert next_actions to main.py format
+        next_actions: list[MainNextAction] = []
+        for action in output.next_actions:
+            # Skip human_review actions
+            if action.type == "human_review":
+                continue
+            next_actions.append(
+                MainNextAction(
+                    action_type=action.type,
+                    priority=action.priority,
+                    why=action.why,
+                    suggested_queries=action.suggested_queries,
+                    target_concepts=action.target_concepts,
+                )
+            )
+
         return VerifyOutput(
             verdicts=verdicts,
             is_enough=output.quality_gate.passed,
             next_search_queries=queries,
+            next_actions=next_actions,
         )
 
 
