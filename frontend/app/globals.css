@@ -131,6 +131,12 @@ a {
   transform: translateY(-1px);
 }
 
+.button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
 .button.primary {
   background: linear-gradient(120deg, rgba(246, 178, 107, 0.24), rgba(92, 225, 198, 0.2));
   border-color: rgba(246, 178, 107, 0.45);
@@ -373,6 +379,16 @@ input[type="number"] {
   width: 80px;
   padding: 4px 8px;
   border-radius: 8px;
+  border: 1px solid rgba(120, 160, 180, 0.35);
+  background: rgba(11, 19, 26, 0.85);
+  color: var(--text-primary);
+  font-size: 12px;
+}
+
+.text-input {
+  min-width: 240px;
+  padding: 6px 12px;
+  border-radius: 999px;
   border: 1px solid rgba(120, 160, 180, 0.35);
   background: rgba(11, 19, 26, 0.85);
   color: var(--text-primary);

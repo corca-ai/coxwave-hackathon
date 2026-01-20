@@ -58,3 +58,25 @@
 - 그래프/트레이스/스트림 패널 간 상태 동기화
 - 업로드/재생 시각화 갱신
 - maxEvents 제한이 실제로 적용됨
+
+## 3) API 서버 (Streaming)
+
+### 자동화 테스트 (스모크)
+- 서버 실행: `python3 server.py`
+- 헬스 체크: `curl -s http://localhost:8000/health`
+- 간단 스트림 확인 (SSE):
+  - `curl -N -X POST http://localhost:8000/api/run/stream -H "Content-Type: application/json" -d '{"query":"Graph RAG for scientific papers"}'`
+ - 프론트 연동: `NEXT_PUBLIC_API_BASE`로 서버 주소 오버라이드 가능 (기본: `http://localhost:8000`)
+
+### 수동 테스트 시나리오
+1. **/health 확인**
+   - 관찰: `{"status":"ok","agents_loaded":true}` 응답
+2. **Clarify 스트림**
+   - `/api/clarify/stream` 호출 시 event stream이 순서대로 수신되는지
+3. **Full pipeline 스트림**
+   - `/api/run/stream` 호출 시 pipeline_start → agent events → pipeline_complete 흐름 확인
+
+확신을 위한 체크리스트
+- SSE 이벤트가 `data: {json}\n\n` 형태로 연속 수신됨
+- 에러 시 `StreamEventTypes.ERROR`가 반환됨
+- 클라이언트 중단 시 서버가 예외 없이 종료
