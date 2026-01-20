@@ -199,9 +199,25 @@ class E2EIntegrationTest(unittest.TestCase):
 
         output = buffer.getvalue()
 
-        # Must have these sections
-        for section in ["Input", "Clarify", "Done"]:
+        # Must have these sections (new orchestrator-based flow)
+        for section in [
+            "Input",
+            "Clarify",
+            "Orchestrator",
+            "Plan",
+            "Research Loop",
+            "Search",
+            "Extract",
+            "Verify",
+            "Write",
+            "Visualize",
+            "Done",
+        ]:
             self.assertIn(section, output, msg=f"Missing section: {section}")
+
+        # Verify orchestrator summary is printed
+        self.assertIn("loops_used", output)
+        self.assertIn("Quality gate PASSED", output)
 
         self.assertEqual(exit_code, 0)
 
