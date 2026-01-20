@@ -44,6 +44,10 @@ class TestRagIngestCandidates:
             candidates=candidates,
             ingest_policy=policy,
         )
+        print("RAG ingest input:")
+        print(json.dumps({"namespace": "test-ns", "candidates": [c.model_dump() for c in candidates]}, indent=2, ensure_ascii=True))
+        print("RAG ingest output:")
+        print(json.dumps(result.model_dump(), indent=2, ensure_ascii=True))
 
         assert isinstance(result, IngestSummary)
         assert result.new_docs_added == 2
@@ -81,6 +85,10 @@ class TestRagIngestCandidates:
             candidates=candidates,
             ingest_policy=policy,
         )
+        print("RAG ingest input:")
+        print(json.dumps({"namespace": "test-ns", "candidates": [c.model_dump() for c in candidates]}, indent=2, ensure_ascii=True))
+        print("RAG ingest output:")
+        print(json.dumps(result.model_dump(), indent=2, ensure_ascii=True))
 
         assert result.new_docs_added == 1
         assert result.duplicates_skipped == 1
@@ -128,6 +136,10 @@ class TestRagPreview:
             query="test query",
             top_k=5,
         )
+        print("RAG preview input:")
+        print(json.dumps({"namespace": "test-ns", "query": "test query", "top_k": 5}, indent=2, ensure_ascii=True))
+        print("RAG preview output:")
+        print(json.dumps(result, indent=2, ensure_ascii=True))
 
         assert isinstance(result, list)
         assert len(result) == 0
@@ -141,6 +153,10 @@ class TestRagPreview:
             query="machine learning",
             top_k=10,
         )
+        print("RAG preview input:")
+        print(json.dumps({"namespace": "test-ns", "query": "machine learning", "top_k": 10}, indent=2, ensure_ascii=True))
+        print("RAG preview output:")
+        print(json.dumps(result, indent=2, ensure_ascii=True))
 
         assert isinstance(result, list)
         assert len(result) == 0

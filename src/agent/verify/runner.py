@@ -27,15 +27,22 @@ def verify(
     """Verifier Agent 실행: Extractor 결과 검증"""
     load_env(keys=["OPENAI_API_KEY", "OPENAI_MODEL", "OPENAI_TEMPERATURE"])
     if not os.getenv("OPENAI_API_KEY"):
-        raise SystemExit("OPENAI_API_KEY is not set.")
+        raise click.ClickException("OPENAI_API_KEY is not set.")
 
     # 아티팩트 디렉토리 설정
     artifacts_path = Path(artifacts_dir)
     set_artifacts_dir(artifacts_path)
 
     # Extractor 결과 로드
-    with open(extractor_result, encoding="utf-8") as f:
-        extractor_data = json.load(f)
+    try:
+        with open(extractor_result, encoding="utf-8") as f:
+            extractor_data = json.load(f)
+    except FileNotFoundError as exc:
+        raise click.ClickException(f"Extractor result file not found: {extractor_result}") from exc
+    except json.JSONDecodeError as exc:
+        raise click.ClickException(f"Extractor result must be valid JSON: {exc}") from exc
+    except OSError as exc:
+        raise click.ClickException(f"Failed to read extractor result: {exc}") from exc
 
     request = VerifierRequest(
         goal=goal,

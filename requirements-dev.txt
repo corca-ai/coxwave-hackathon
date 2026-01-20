@@ -1,0 +1,3 @@
+# Optional deps for DSPy experiments
+
+dspy

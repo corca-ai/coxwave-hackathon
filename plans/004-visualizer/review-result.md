@@ -32,4 +32,4 @@
 - E2E demo still uses mock Planner/Searcher/Extractor/Verifier/Writer, so real multi-agent orchestration is not exercised.
 
 ## Tests Run
-- Not run (not requested).
+- `pytest tests/ -v`

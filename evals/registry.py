@@ -1,0 +1,23 @@
+from __future__ import annotations
+
+from evals.clarifier_eval import build_spec as build_clarifier_spec
+from evals.visualizer_eval import build_spec as build_visualizer_spec
+from evals.specs import EvalSpec
+
+
+EVAL_SPECS: dict[str, EvalSpec] = {
+    "clarifier": build_clarifier_spec(),
+    "visualizer": build_visualizer_spec(),
+}
+
+
+def list_specs() -> list[str]:
+    return sorted(EVAL_SPECS.keys())
+
+
+def get_spec(name: str) -> EvalSpec:
+    try:
+        return EVAL_SPECS[name]
+    except KeyError as exc:
+        available = ", ".join(list_specs())
+        raise KeyError(f"Unknown agent '{name}'. Available: {available}") from exc
