@@ -7,3 +7,12 @@ plans/003-clarifier/_req_req.md 는 clarifier 에이전트 구현 작업을 위�
 ---
 
 네 가정이 옳다. _req.md 에 적절히 업데이트 후 구현 진행.
+
+---
+
+테스트 다 돌려보고 수정할 거 수정해줘.
+
+---
+
+code-review 하고, 필요한 부분 (README 포함해서) 모두 적절히 수정해줘.
+

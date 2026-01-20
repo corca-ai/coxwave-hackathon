@@ -312,10 +312,16 @@ def _normalize_report_output(output: ReportOutput, payload: dict[str, Any]) -> R
         citations = [item for item in citations if item in allowed]
         if not citations:
             citations = default.citations
+    else:
+        citations = default.citations
 
     if not key_findings:
         if "No supported claims were provided." not in limitations:
             limitations.append("No supported claims were provided.")
+    elif len(key_findings) < 3:
+        note = "Fewer than 3 key findings due to limited supported claims."
+        if note not in limitations:
+            limitations.append(note)
 
     if not _extract_sources(payload):
         if "No sources were provided." not in limitations:
