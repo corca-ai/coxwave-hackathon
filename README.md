@@ -113,7 +113,8 @@ Vercel 배포 시 Root Directory는 `frontend/`, Build Command는 `npm run build
 
 ## 조건 충족 여부
 
-- [x] OpenAI API 사용 (Clarifier/Visualizer, Search/Verifier Agent SDK)
+- [x] OpenAI API 사용 + DSPy 지원 (전 에이전트)
+- [x] 전 에이전트 DSPy 전환 (USE_DSPY_ALL/개별 플래그)
 - [ ] 멀티에이전트 구현 (E2E 오케스트레이션은 mock 기반)
 - [x] 실행 가능한 데모 (Mock)
 - [x] Frontend UI (Graph/Trace/Streaming)
@@ -122,13 +123,13 @@ Vercel 배포 시 Root Directory는 `frontend/`, Build Command는 `npm run build
 
 | Agent | Status | Notes |
 | --- | --- | --- |
-| Clarifier | Implemented (OpenAI Agents SDK) | 단독 CLI + 단위 테스트 |
-| Planner | Mock | placeholder |
-| Searcher | Implemented (Standalone CLI) | `src/runner.py`로 단독 실행, 메인 데모는 mock 사용 |
-| Extractor | Implemented (OpenAI Agents SDK) | `src/agent/extract/runner.py`로 단독 실행 |
-| Verifier | Implemented (Standalone CLI) | `src/agent/verify/runner.py`로 단독 실행 |
-| Writer | Implemented (OpenAI Agents SDK) | 단독 CLI + 단위 테스트 |
-| Visualizer | Implemented (OpenAI Agents SDK) | 단독 CLI + 단위 테스트 |
+| Clarifier | Implemented (OpenAI Agents SDK + DSPy) | 단독 CLI + 단위 테스트 + DSPy CLI |
+| Planner | Implemented (DSPy + OpenAI wrapper) | DSPy CLI + eval dataset |
+| Searcher | Implemented (DSPy + search tools) | DSPy CLI + eval dataset |
+| Extractor | Implemented (OpenAI Agents SDK + DSPy) | 단독 CLI + eval dataset |
+| Verifier | Implemented (Standalone CLI + DSPy) | 단독 CLI + eval dataset |
+| Writer | Implemented (OpenAI Agents SDK + DSPy) | 단독 CLI + eval dataset |
+| Visualizer | Implemented (OpenAI Agents SDK + DSPy) | 단독 CLI + eval dataset |
 
 ## 아키텍처
 
@@ -179,8 +180,8 @@ Vercel 배포 시 Root Directory는 `frontend/`, Build Command는 `npm run build
 ## 기술 스택
 
 - **LLM**: OpenAI GPT-5.2 / GPT-5-mini
-- **에이전트 프레임워크**: [OpenAI Agent SDK (Python)](https://github.com/openai/openai-agents-python/)
-- **파이프라인 최적화**: [DSPy](https://dspy.ai/) - metric 기반 자동 최적화
+- **에이전트 프레임워크**: [OpenAI Agent SDK (Python)](https://github.com/openai/openai-agents-python/) (optional path)
+- **DSPy**: 전 에이전트 모듈 + metric 기반 자동 최적화
 - **지식 그래프**: GraphDB (OWL 추론 + SHACL 검증)
 - **스키마**: RDF/OWL + SPARQL
 - **Frontend**: Next.js App Router + @xyflow/react (React Flow)
@@ -203,6 +204,10 @@ python3 main.py --mock --query "Your research question"
 # 실제 에이전트 연결 후 실행
 python3 main.py --query "Your research question"
 
+# DSPy 전체 전환 (옵션)
+export USE_DSPY_ALL=1
+python3 main.py --query "Your research question"
+
 # Clarifier 단독 실행
 python3 clarifier_cli.py --query "Your research question"
 
@@ -216,6 +221,7 @@ python3 writer_cli.py --input path/to/writer_input.json
 ```
 
 `.env` 파일에 `OPENAI_API_KEY`를 넣어두면 자동으로 로드된다.
+DSPy 전환은 `USE_DSPY_ALL` 또는 `USE_DSPY_<AGENT>` 플래그로 제어한다.
 Clarifier 반복 횟수는 `DEMO_MAX_CLARIFY_ROUNDS`로 지정하고, `--clarify-rounds`로 오버라이드할 수 있다. 기본값은 2이다.
 각 단계 입력 payload는 기본으로 출력되며, 추가 설정 없이도 전달 경로를 확인할 수 있다.
 Frontend에서는 `NEXT_PUBLIC_STREAM_MAX_EVENTS`로 스트림 재생 상한을 설정하고, `?maxEvents=` 쿼리로 오버라이드할 수 있다.
@@ -234,16 +240,17 @@ def build_agents() -> DemoAgents:
 
 ## 문서
 
-- [concepts.md](./concepts.md) - 지식 그래프/온톨로지 핵심 개념
-- [implementation.md](./implementation.md) - 구현 도구 및 기술 스택
+- [concepts.md](./docs/concepts.md) - 지식 그래프/온톨로지 핵심 개념
+- [implementation.md](./docs/implementation.md) - 구현 도구 및 기술 스택
 - [dspy.md](./docs/dspy.md) - DSPy 사용/최적화 가이드
-- [demo-scenario.md](./demo-scenario.md) - 데모 시나리오 상세
-- [meta-strategy.md](./meta-strategy.md) - 개발 전략
+- [dspy-report-template.md](./docs/dspy-report-template.md) - DSPy 최적화 리포트 템플릿
+- [demo-scenario.md](./docs/demo-scenario.md) - 데모 시나리오 상세
+- [meta-strategy.md](./docs/meta-strategy.md) - 개발 전략
 - [problem-1pager-demo.md](./plans/002-demo/problem-1pager.md) - 데모 성공 기준/측정
 - [visual-output.schema.json](./docs/schemas/visual-output.schema.json) - Visualizer JSON 스키마
 - [run-bundle.schema.json](./docs/schemas/run-bundle.schema.json) - Run Bundle 스키마
 - [stream-events.schema.json](./docs/schemas/stream-events.schema.json) - 스트리밍 이벤트 스키마
-- [retrospective.md](./retrospective.md) - 기존 시스템 구축 회고
+- [retrospective.md](./docs/retrospective.md) - 기존 시스템 구축 회고
 - [kg2 스킬 문서](../.claude/skills/kg2/SKILL.md) - 그래프 운영 규칙/스키마 정본
 - [Search Agent 설계 문서](docs/plans/2026-01-20-search-agent-design.md)
 - [Search Agent 구현 계획](docs/plans/2026-01-20-search-agent-impl.md)
@@ -312,6 +319,13 @@ python3 main.py --mock --query "Investigate RAG and hallucination in legal QA"
 
 # DSPy Clarifier 단독 확인 (DSPy 설치 필요)
 python3 -m dspy_integration.clarifier_cli --query "AI alignment"
+
+# DSPy Planner/Searcher/Extractor/Verifier/Writer 단독 확인
+python3 -m dspy_integration.planner_cli --input path/to/clarifier_context.json
+python3 -m dspy_integration.searcher_cli --input path/to/search_context.json
+python3 -m dspy_integration.extractor_cli --input path/to/search_output.json
+python3 -m dspy_integration.verifier_cli --input path/to/extract_output.json
+python3 -m dspy_integration.writer_cli --input path/to/writer_input.json
 ```
 
 테스트 실행 로그는 `tests/_artifacts/`에 저장된다.
@@ -336,11 +350,12 @@ python3 evals_cli.py --agent clarifier --engine dspy --dataset evals/datasets/cl
 
 - `EVAL_MAX_SAMPLES`로 평가 샘플 상한을 설정할 수 있으며, `--max-samples`로 오버라이드한다.
 - 결과 로그는 기본적으로 `evals/_artifacts/`에 저장되며, `EVAL_ARTIFACT_DIR`로 변경 가능하다.
+- 다른 에이전트 평가/최적화 경로는 `docs/dspy.md` 참고.
 
 ## 향후 계획
 
 - [ ] 지식 그래프 스키마 확정 및 초기 데이터 수집
-- [ ] DSPy 기반 추출/검증 파이프라인 구축
+- [x] DSPy 기반 추출/검증 파이프라인 구축
 - [ ] Agent SDK로 워크플로우 통합
 - [x] UI 구현 및 Observability 추가 (Graph/Trace/Streaming, local demo)
 - [ ] Vercel 배포 (Frontend)
