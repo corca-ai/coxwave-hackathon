@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { GraphNodeData } from "../lib/graph";
@@ -78,6 +79,22 @@ export default function AppClient() {
   }, []);
 
   useEffect(() => {
+    const storedBundle = window.localStorage.getItem("rn_last_run_bundle");
+    const storedEvents = window.localStorage.getItem("rn_last_stream_events");
+    if (storedBundle && storedEvents) {
+      try {
+        const parsedBundle = parseRunBundle(JSON.parse(storedBundle));
+        const parsedEvents = parseStreamEvents(storedEvents);
+        setRunBundle(parsedBundle);
+        setSelectedStep(parsedBundle.steps[0] ?? null);
+        setStreamEvents(parsedEvents);
+        setStreamCursor(Math.min(parsedEvents.length, maxEvents));
+        setSelectedEvent(parsedEvents[0] ?? null);
+        return;
+      } catch (err) {
+        console.warn("Failed to load stored run bundle:", err);
+      }
+    }
     void loadSample();
   }, []);
 
@@ -413,6 +430,9 @@ export default function AppClient() {
             <button className="button primary" type="button" onClick={loadSample}>
               Load demo bundle
             </button>
+            <Link className="button" href="/">
+              Home
+            </Link>
             <label className="button input-file" aria-label="Load run bundle">
               Load run bundle
               <input

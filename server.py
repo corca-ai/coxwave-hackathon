@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+import os
 from contextlib import asynccontextmanager
 from dataclasses import asdict
 from typing import AsyncGenerator
@@ -12,9 +13,13 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from agents_impl import build_agents
+from env_loader import load_env
 from main import OrchestratorConfig
 from stream_events import StreamEvent, StreamEventTypes
 
+
+# Load environment variables early (including CORS settings).
+load_env()
 
 # Global agents instance
 _agents = None
@@ -37,9 +42,16 @@ app = FastAPI(
 )
 
 # CORS for frontend
+def _cors_origins() -> list[str]:
+    raw = os.getenv("CORS_ORIGINS") or os.getenv("FRONTEND_ORIGIN")
+    if raw:
+        return [origin.strip() for origin in raw.split(",") if origin.strip()]
+    return ["http://localhost:3000", "http://127.0.0.1:3000"]
+
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, specify your frontend URL
+    allow_origins=_cors_origins(),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -51,6 +63,7 @@ class QueryRequest(BaseModel):
     max_clarify_rounds: int = 2
     max_orchestrator_loops: int = 3
     skip_clarify: bool = False
+    clarified_context: str | None = None
 
 
 class ClarifyRequest(BaseModel):
@@ -190,26 +203,33 @@ async def run_full_pipeline_stream(request: QueryRequest):
         seq += 1
 
         try:
-            # Phase 1: Clarify
-            clarified_output = None
-            if hasattr(_agents.clarifier, "run_stream"):
-                async for event in _agents.clarifier.run_stream(request.query):
-                    event.sequence = seq
-                    yield f"data: {json.dumps(event.to_dict())}\n\n"
-                    seq += 1
-                    if event.type == StreamEventTypes.AGENT_COMPLETE:
-                        clarified_output = event.payload.get("output", {})
+            clarified_context = None
+
+            if request.skip_clarify and request.clarified_context:
+                clarified_context = request.clarified_context
             else:
-                clarified_output = asdict(_agents.clarifier.run(request.query))
+                # Phase 1: Clarify
+                clarified_output = None
+                if hasattr(_agents.clarifier, "run_stream"):
+                    async for event in _agents.clarifier.run_stream(request.query):
+                        event.sequence = seq
+                        yield f"data: {json.dumps(event.to_dict())}\n\n"
+                        seq += 1
+                        if event.type == StreamEventTypes.AGENT_COMPLETE:
+                            clarified_output = event.payload.get("output", {})
+                else:
+                    clarified_output = asdict(await _agents.clarifier.run(request.query))
 
-            if clarified_output is None:
-                raise RuntimeError("Clarifier did not produce output")
+                if clarified_output is None:
+                    raise RuntimeError("Clarifier did not produce output")
 
-            # Build clarified context
-            clarified_context = json.dumps({
-                "original_query": request.query,
-                "final": clarified_output,
-            })
+                clarified_context = json.dumps({
+                    "original_query": request.query,
+                    "final": clarified_output,
+                })
+
+            if clarified_context is None:
+                raise RuntimeError("Clarified context is missing")
 
             # Phase 2: Orchestrate
             config = OrchestratorConfig(
@@ -226,7 +246,7 @@ async def run_full_pipeline_stream(request: QueryRequest):
                     if event.type == StreamEventTypes.AGENT_COMPLETE and event.agent == "orchestrator":
                         orchestrator_output = event.payload.get("output", {})
             else:
-                orchestrator_output = asdict(_agents.orchestrator.run(clarified_context, config))
+                orchestrator_output = asdict(await _agents.orchestrator.run(clarified_context, config))
 
             # Phase 3: Visualize (if report available)
             if orchestrator_output and orchestrator_output.get("report"):
@@ -274,9 +294,11 @@ async def clarify(request: ClarifyRequest):
     """Non-streaming clarify endpoint."""
     if _agents is None:
         raise HTTPException(status_code=503, detail="Agents not initialized")
-
-    result = _agents.clarifier.run(request.query)
-    return asdict(result)
+    try:
+        result = await _agents.clarifier.run(request.query)
+        return asdict(result)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
 @app.post("/api/orchestrator")
@@ -289,8 +311,11 @@ async def orchestrate(request: OrchestratorRequest):
         max_loops=request.max_loops,
         require_plan_approval=False,
     )
-    result = _agents.orchestrator.run(request.clarified_context, config)
-    return asdict(result)
+    try:
+        result = await _agents.orchestrator.run(request.clarified_context, config)
+        return asdict(result)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
 if __name__ == "__main__":

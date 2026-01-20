@@ -120,11 +120,11 @@ class OpenAIClarifier:
             input_guardrails=INPUT_GUARDRAILS,
         )
 
-    def run(self, query: str) -> ClarifyOutput:
+    async def run(self, query: str) -> ClarifyOutput:
         load_env(keys=["OPENAI_API_KEY"])
         if not os.getenv("OPENAI_API_KEY"):
             raise RuntimeError("OPENAI_API_KEY is not set.")
-        result = Runner.run_sync(self._agent, query)
+        result = await Runner.run(self._agent, query)
         output = result.final_output
         if not isinstance(output, ClarifyOutput):
             raise TypeError("Clarifier output is not ClarifyOutput")
@@ -292,7 +292,7 @@ class OpenAIPlanner:
     def __init__(self) -> None:
         load_env(keys=["OPENAI_API_KEY", "OPENAI_MODEL"])
 
-    def run(self, context: str) -> PlanOutput:
+    async def run(self, context: str) -> PlanOutput:
         load_env(keys=["OPENAI_API_KEY"])
         if not os.getenv("OPENAI_API_KEY"):
             raise RuntimeError("OPENAI_API_KEY is not set.")
@@ -307,7 +307,7 @@ class OpenAIPlanner:
         )
 
         # Run plan_agent
-        result = Runner.run_sync(plan_agent, request.model_dump_json())
+        result = await Runner.run(plan_agent, request.model_dump_json())
         output = result.final_output
         if not isinstance(output, PlannerResult):
             raise TypeError("Planner output is not PlannerResult")
@@ -326,7 +326,7 @@ class OpenAISearcher:
         load_env(keys=["OPENAI_API_KEY", "OPENAI_MODEL"])
         self._model = model or os.getenv("OPENAI_MODEL") or MODEL_HEAVY
 
-    def run(self, context: str) -> SearchOutput:
+    async def run(self, context: str) -> SearchOutput:
         load_env(keys=["OPENAI_API_KEY"])
         if not os.getenv("OPENAI_API_KEY"):
             raise RuntimeError("OPENAI_API_KEY is not set.")
@@ -347,7 +347,7 @@ class OpenAISearcher:
             constraints=Constraints(target_new_docs=target_new_docs),
         )
 
-        result = Runner.run_sync(search_agent, request.model_dump_json())
+        result = await Runner.run(search_agent, request.model_dump_json())
         output = result.final_output
         if not isinstance(output, SearchResult):
             raise TypeError("Search output is not SearchResult")
@@ -481,7 +481,7 @@ class OpenAIExtractor:
     def __init__(self) -> None:
         load_env(keys=["OPENAI_API_KEY", "OPENAI_MODEL"])
 
-    def run(self, context: str) -> ExtractOutput:
+    async def run(self, context: str) -> ExtractOutput:
         load_env(keys=["OPENAI_API_KEY"])
         if not os.getenv("OPENAI_API_KEY"):
             raise RuntimeError("OPENAI_API_KEY is not set.")
@@ -499,7 +499,7 @@ class OpenAIExtractor:
             search_result=search_result,
         )
 
-        result = Runner.run_sync(extract_agent, request.model_dump_json())
+        result = await Runner.run(extract_agent, request.model_dump_json())
         output = result.final_output
         if not isinstance(output, ExtractorResult):
             raise TypeError("Extractor output is not ExtractorResult")
@@ -638,7 +638,7 @@ class OpenAIVerifier:
     def __init__(self) -> None:
         load_env(keys=["OPENAI_API_KEY", "OPENAI_MODEL"])
 
-    def run(self, context: str) -> VerifyOutput:
+    async def run(self, context: str) -> VerifyOutput:
         load_env(keys=["OPENAI_API_KEY"])
         if not os.getenv("OPENAI_API_KEY"):
             raise RuntimeError("OPENAI_API_KEY is not set.")
@@ -659,7 +659,7 @@ class OpenAIVerifier:
             constraints=VerifierConstraints(),
         )
 
-        result = Runner.run_sync(verifier_agent, request.model_dump_json())
+        result = await Runner.run(verifier_agent, request.model_dump_json())
         output = result.final_output
         if not isinstance(output, VerifierResult):
             raise TypeError("Verifier output is not VerifierResult")
@@ -1017,12 +1017,12 @@ class OpenAIWriter:
             ),
         )
 
-    def run(self, context: str) -> ReportOutput:
+    async def run(self, context: str) -> ReportOutput:
         load_env(keys=["OPENAI_API_KEY"])
         if not os.getenv("OPENAI_API_KEY"):
             raise RuntimeError("OPENAI_API_KEY is not set.")
         payload = _parse_writer_context(context)
-        result = Runner.run_sync(self._agent, context)
+        result = await Runner.run(self._agent, context)
         output = result.final_output
         if not isinstance(output, ReportOutput):
             raise TypeError("Writer output is not ReportOutput")
@@ -1052,12 +1052,12 @@ class OpenAIVisualizer:
             output_guardrails=OUTPUT_GUARDRAILS,
         )
 
-    def run(self, context: str) -> VisualOutput:
+    async def run(self, context: str) -> VisualOutput:
         load_env(keys=["OPENAI_API_KEY"])
         if not os.getenv("OPENAI_API_KEY"):
             raise RuntimeError("OPENAI_API_KEY is not set.")
         report = _parse_report_context(context)
-        result = Runner.run_sync(self._agent, context)
+        result = await Runner.run(self._agent, context)
         output = result.final_output
         if not isinstance(output, VisualOutput):
             raise TypeError("Visualizer output is not VisualOutput")
