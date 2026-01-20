@@ -417,13 +417,21 @@ def run_demo(
     print_section("Plan")
     if show_inputs:
         print_json("Plan input", clarifier_payload)
-    plan_out = agents.planner.run(clarified_context)
+    try:
+        plan_out = agents.planner.run(clarified_context)
+    except Exception as exc:
+        print(f"Planner failed: {exc}")
+        return 1
     print_json("Plan", plan_out)
 
     if not ask_yes_no("Approve this plan? [y/N]: "):
         feedback = ask("What should change in the plan? ")
         plan_input = f"{clarified_context}\nUser feedback: {feedback}"
-        plan_out = agents.planner.run(plan_input)
+        try:
+            plan_out = agents.planner.run(plan_input)
+        except Exception as exc:
+            print(f"Planner failed: {exc}")
+            return 1
         print_json("Revised plan", plan_out)
         if not ask_yes_no("Approve revised plan? [y/N]: "):
             print("Plan not approved. Exiting.")
@@ -434,7 +442,11 @@ def run_demo(
     if show_inputs:
         print_json("Search input", search_payload)
     search_input = json.dumps(search_payload, ensure_ascii=True)
-    search_out = agents.searcher.run(search_input)
+    try:
+        search_out = agents.searcher.run(search_input)
+    except Exception as exc:
+        print(f"Searcher failed: {exc}")
+        return 1
     print_json("Search results", search_out)
 
     print_section("Extract")
@@ -442,7 +454,11 @@ def run_demo(
     if show_inputs:
         print_json("Extract input", extract_payload)
     extract_input = json.dumps(extract_payload, ensure_ascii=True)
-    extract_out = agents.extractor.run(extract_input)
+    try:
+        extract_out = agents.extractor.run(extract_input)
+    except Exception as exc:
+        print(f"Extractor failed: {exc}")
+        return 1
     print_json("Extracted claims", extract_out)
 
     print_section("Verify")
@@ -450,7 +466,11 @@ def run_demo(
     if show_inputs:
         print_json("Verify input", verify_payload)
     verify_input = json.dumps(verify_payload, ensure_ascii=True)
-    verify_out = agents.verifier.run(verify_input)
+    try:
+        verify_out = agents.verifier.run(verify_input)
+    except Exception as exc:
+        print(f"Verifier failed: {exc}")
+        return 1
     print_json("Verification", verify_out)
 
     if not verify_out.is_enough:
@@ -475,7 +495,11 @@ def run_demo(
     writer_input = json.dumps(writer_payload, ensure_ascii=True)
 
     print_section("Write")
-    report_out = agents.writer.run(writer_input)
+    try:
+        report_out = agents.writer.run(writer_input)
+    except Exception as exc:
+        print(f"Writer failed: {exc}")
+        return 1
     print_json("Report", report_out)
 
     if visualize:
@@ -484,7 +508,11 @@ def run_demo(
         if show_inputs:
             print_json("Visualize input", visual_payload)
         visual_input = json.dumps(visual_payload, ensure_ascii=True)
-        visual_out = agents.visualizer.run(visual_input)
+        try:
+            visual_out = agents.visualizer.run(visual_input)
+        except Exception as exc:
+            print(f"Visualizer failed: {exc}")
+            return 1
         print_json("Visualization spec", visual_out)
 
     print_section("Done")

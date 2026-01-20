@@ -1,27 +1,35 @@
 # 004 Visualizer Review
 
 ## Scope
-- `agents_impl.py`
 - `main.py`
-- `visualizer_cli.py`
-- `tests/test_visualizer.py`
-- `tests/test_demo_e2e.py`
-- `docs/schemas/visual-output.schema.json`
+- `agents_impl.py`
+- `src/runner.py`
+- `src/agent/verify/runner.py`
+- `src/agent/search/tools/search.py`
+- `src/agent/search/tools/rag.py`
+- `src/agent/search/clients/arxiv_client.py`
+- `src/agent/search/clients/local_store.py`
+- `src/agent/search/ranking.py`
 - `README.md`
+- `tests/*`
 
 ## Findings (fixed)
-1. **High**: Agents SDK strict schema rejected `VisualOutput` because `props` allows arbitrary keys, causing runtime failure.
-   - Fix: `AgentOutputSchema(VisualOutput, strict_json_schema=False)` in `agents_impl.py`.
-2. **Medium**: Mock Visualizer output lacked required component types used by schema/tests.
-   - Fix: expanded `MockVisualizer` components in `main.py`.
-3. **Low**: No deterministic fixture for Visualizer manual run/tests.
-   - Fix: auto-generated fixture in `tests/test_visualizer.py` and documented in `README.md`.
-4. **Low**: `visualizer_cli.py` crashed on missing input file instead of returning a clear error.
-   - Fix: added file-not-found handling with user-friendly messages.
+1. **High**: Search/Verify CLIs did not load `.env` or check `OPENAI_API_KEY`, and did not print input/output payloads → violates observability + reliability expectations.
+   - Fix: load `.env`, validate key, and always emit JSON payloads in `src/runner.py` and `src/agent/verify/runner.py`.
+2. **High**: `time_range_years` constraint in `ArxivClient` was ignored, allowing out-of-range papers.
+   - Fix: filter results by cutoff year in `src/agent/search/clients/arxiv_client.py` with tests.
+3. **Medium**: Duplicate arXiv IDs in a single ingest batch could be saved multiple times; duplicate counts were under-reported.
+   - Fix: dedupe in `src/agent/search/tools/rag.py` and `src/agent/search/clients/local_store.py` with tests.
+4. **Medium**: Recency scoring could exceed 1.0 for future-dated papers.
+   - Fix: clamp recency score in `src/agent/search/ranking.py` with tests.
+5. **Medium**: Demo pipeline lacked step-level exception handling after clarifier, risking hard crashes.
+   - Fix: wrap planner/search/extract/verify/write/visualize calls in `main.py` and return non-zero on failures.
+6. **Low**: README status did not reflect actual agent availability (Search/Verifier exist but not wired) and OpenAI usage.
+   - Fix: update `README.md` status and notes.
 
 ## Remaining Risks / Notes
-- JSON schema is permissive by design; no strict schema validation is enforced at runtime.
-- `visualizer_cli.py` does not catch file-not-found errors for the input path.
+- Search tool errors are swallowed and surface only as empty results; `SearchResult.errors` is not populated by tools.
+- E2E demo still uses mock Planner/Searcher/Extractor/Verifier/Writer, so real multi-agent orchestration is not exercised.
 
 ## Tests Run
-- `.venv/bin/python -m unittest tests/test_clarifier.py tests/test_visualizer.py tests/test_demo_e2e.py`
+- Not run (not requested).

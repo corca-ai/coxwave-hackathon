@@ -1,10 +1,14 @@
 import json
-import click
+import os
 from pathlib import Path
+
+import click
 from agents import Runner
+
 from agent.verify.agent import verifier_agent
-from agent.verify.schemas import VerifierRequest, ExtractorResult
+from agent.verify.schemas import ExtractorResult, VerifierRequest
 from agent.verify.tools.rag import set_artifacts_dir
+from env_loader import load_env
 
 
 @click.command()
@@ -21,6 +25,9 @@ def verify(
     artifacts_dir: str
 ):
     """Verifier Agent 실행: Extractor 결과 검증"""
+    load_env(keys=["OPENAI_API_KEY", "OPENAI_MODEL", "OPENAI_TEMPERATURE"])
+    if not os.getenv("OPENAI_API_KEY"):
+        raise SystemExit("OPENAI_API_KEY is not set.")
 
     # 아티팩트 디렉토리 설정
     artifacts_path = Path(artifacts_dir)
@@ -36,6 +43,10 @@ def verify(
         extractor_result=ExtractorResult(**extractor_data)
     )
 
+    click.echo("Verifier input:")
+    click.echo(
+        json.dumps(request.model_dump(), indent=2, ensure_ascii=True)
+    )
     click.echo(f"Verifying: {goal}")
     click.echo(f"Claims: {len(request.extractor_result.claims)}")
 
@@ -44,6 +55,8 @@ def verify(
 
     # 결과 출력
     output_data = result.final_output.model_dump()
+    click.echo("Verifier output:")
+    click.echo(json.dumps(output_data, indent=2, ensure_ascii=True))
     click.echo("\n=== Verification Result ===")
     click.echo(f"Quality Gate: {'PASS' if output_data['quality_gate']['passed'] else 'FAIL'}")
     click.echo(f"Evidence Coverage: {output_data['metrics']['evidence_coverage']:.2%}")

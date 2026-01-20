@@ -93,6 +93,27 @@ class TestRagIngestCandidates:
         assert saved_papers[0]["title"] == "Existing Paper"
         assert saved_papers[1]["arxiv_id"] == "2301.00002"
 
+    def test_rag_ingest_dedupes_input(self, tmp_path):
+        """Should dedupe duplicate arxiv_ids within the input list."""
+        set_artifacts_dir(tmp_path)
+
+        candidates = [
+            make_candidate("2301.00001", "Paper 1"),
+            make_candidate("2301.00001", "Paper 1 duplicate"),
+            make_candidate("2301.00002", "Paper 2"),
+        ]
+        policy = IngestPolicy()
+
+        result = _rag_ingest_candidates_impl(
+            namespace="test-ns",
+            candidates=candidates,
+            ingest_policy=policy,
+        )
+
+        assert result.new_docs_added == 2
+        assert result.duplicates_skipped == 1
+        assert result.index_size == 2
+
 
 class TestRagPreview:
     """Tests for rag_preview tool."""

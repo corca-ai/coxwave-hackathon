@@ -1,6 +1,7 @@
 """arXiv API client for paper search."""
 
 import re
+from datetime import datetime
 from dataclasses import dataclass
 
 import arxiv
@@ -42,10 +43,16 @@ class ArxivClient:
             sort_order=arxiv.SortOrder.Descending,
         )
         candidates = []
+        cutoff_year = None
+        if params.time_range_years and params.time_range_years > 0:
+            cutoff_year = datetime.now().year - params.time_range_years + 1
         for result in self.client.results(search):
             candidate = self._parse_result(result)
-            if candidate:
-                candidates.append(candidate)
+            if not candidate:
+                continue
+            if cutoff_year is not None and candidate.year < cutoff_year:
+                continue
+            candidates.append(candidate)
         return candidates
 
     def _build_query(self, params: ArxivSearchParams) -> str:

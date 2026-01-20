@@ -1,12 +1,17 @@
 """CLI runner for Search Agent."""
 
-import click
+import json
+import os
 from pathlib import Path
+
+import click
 from agents import Runner
+
 from agent.search.agent import search_agent
-from agent.search.schemas import SearchRequest, Constraints
+from agent.search.schemas import Constraints, SearchRequest
 from agent.search.tools.rag import set_artifacts_dir
 from agent.search.clients.local_store import LocalStore
+from env_loader import load_env
 
 
 @click.command()
@@ -16,6 +21,9 @@ from agent.search.clients.local_store import LocalStore
 @click.option("--artifacts-dir", default="artifacts", help="아티팩트 저장 디렉토리")
 def search(goal: str, namespace: str, target_docs: int, artifacts_dir: str):
     """Search Agent 실행"""
+    load_env(keys=["OPENAI_API_KEY", "OPENAI_MODEL", "OPENAI_TEMPERATURE"])
+    if not os.getenv("OPENAI_API_KEY"):
+        raise SystemExit("OPENAI_API_KEY is not set.")
     artifacts_path = Path(artifacts_dir)
     set_artifacts_dir(artifacts_path)
 
@@ -25,10 +33,14 @@ def search(goal: str, namespace: str, target_docs: int, artifacts_dir: str):
         constraints=Constraints(target_new_docs=target_docs),
     )
 
+    click.echo("Search input:")
+    click.echo(json.dumps(request.model_dump(), indent=2, ensure_ascii=True))
     click.echo(f"Searching: {goal}")
     result = Runner.run_sync(search_agent, request.model_dump_json())
 
     output = result.final_output.model_dump()
+    click.echo("Search output:")
+    click.echo(json.dumps(output, indent=2, ensure_ascii=True))
     click.echo(f"Found: {len(output['selected_papers'])} papers")
     click.echo(f"New: {output['ingest_summary']['new_docs_added']}")
 
