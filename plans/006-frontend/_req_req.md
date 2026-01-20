@@ -14,3 +14,7 @@ vercel-react-best-pratices skill을 이용해서 구현할 것인데, 네가 이
 ---
 
 Next.js App Router. 그래프 라이브러리는 가장 적절한 걸로 (vercel-react-best-pratices 참고). UI는 일단 로컬 전용(데모 보여주기가 목적)이나 Vercel 배포 고려(동작하는 URL을 전달하면 가산점). 로그 스키마 저장소는 가장 적합한 장소에 알아서. -> _req.md 업데이트해줘.
+
+---
+
+모두 좋다. 적절한 단위로 커밋하면서 진행해줘.
