@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-import os
-from dataclasses import replace
-from typing import Any, Optional
+from dspy_integration.clarifier import DSPyClarifier
 
 from env_loader import load_env
 from main import ClarifyOutput
@@ -165,3 +163,4 @@ class DSPyClarifier:
             assumptions=_coerce_list(getattr(prediction, "assumptions", None)),
         )
         return _normalize_output(output, query)
+__all__ = ["DSPyClarifier"]

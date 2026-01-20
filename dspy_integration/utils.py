@@ -32,11 +32,33 @@ def require_dspy():
     return dspy
 
 
+def _normalize_agent_name(agent_name: Optional[str]) -> Optional[str]:
+    if not agent_name:
+        return None
+    return agent_name.strip().upper().replace("-", "_")
+
+
+def _get_prefixed_env(agent_name: Optional[str], suffix: str) -> Optional[str]:
+    normalized = _normalize_agent_name(agent_name)
+    if not normalized:
+        return None
+    return os.getenv(f"DSPY_{normalized}_{suffix}")
+
+
 def resolve_dspy_settings(
     model: Optional[str] = None,
     temperature: Optional[float] = None,
     max_tokens: Optional[int] = None,
+    agent_name: Optional[str] = None,
 ) -> DSPySettings:
+    agent_keys: list[str] = []
+    normalized_agent = _normalize_agent_name(agent_name)
+    if normalized_agent:
+        agent_keys = [
+            f"DSPY_{normalized_agent}_MODEL",
+            f"DSPY_{normalized_agent}_TEMPERATURE",
+            f"DSPY_{normalized_agent}_MAX_TOKENS",
+        ]
     load_env(
         keys=[
             "OPENAI_API_KEY",
@@ -45,6 +67,7 @@ def resolve_dspy_settings(
             "DSPY_MODEL",
             "DSPY_TEMPERATURE",
             "DSPY_MAX_TOKENS",
+            *agent_keys,
         ]
     )
     api_key = os.getenv("OPENAI_API_KEY")
@@ -53,17 +76,22 @@ def resolve_dspy_settings(
 
     resolved_model = (
         model
+        or _get_prefixed_env(agent_name, "MODEL")
         or os.getenv("DSPY_MODEL")
         or os.getenv("OPENAI_MODEL")
         or MODEL_HEAVY
     )
 
     if temperature is None:
-        temp_env = os.getenv("DSPY_TEMPERATURE") or os.getenv("OPENAI_TEMPERATURE")
+        temp_env = (
+            _get_prefixed_env(agent_name, "TEMPERATURE")
+            or os.getenv("DSPY_TEMPERATURE")
+            or os.getenv("OPENAI_TEMPERATURE")
+        )
         temperature = float(temp_env) if temp_env is not None else 0.2
 
     if max_tokens is None:
-        max_env = os.getenv("DSPY_MAX_TOKENS")
+        max_env = _get_prefixed_env(agent_name, "MAX_TOKENS") or os.getenv("DSPY_MAX_TOKENS")
         max_tokens = int(max_env) if max_env is not None else 1024
 
     return DSPySettings(

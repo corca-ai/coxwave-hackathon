@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { GraphNodeData } from "../lib/graph";
 import { buildGraph } from "../lib/graph";
 import { prettyJson } from "../lib/json";
@@ -26,6 +26,7 @@ const DEFAULT_MAX_EVENTS = Number.parseInt(
   process.env.NEXT_PUBLIC_STREAM_MAX_EVENTS ?? "200",
   10
 );
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:8000";
 
 export default function AppClient() {
   const [runBundle, setRunBundle] = useState<RunBundle | null>(null);
@@ -38,6 +39,10 @@ export default function AppClient() {
   const [speed, setSpeed] = useState(1);
   const [maxEvents, setMaxEvents] = useState(DEFAULT_MAX_EVENTS);
   const [error, setError] = useState<string | null>(null);
+  const [serverQuery, setServerQuery] = useState("Graph RAG for scientific papers");
+  const [serverStatus, setServerStatus] = useState<string | null>(null);
+  const [isStreaming, setIsStreaming] = useState(false);
+  const streamAbortRef = useRef<AbortController | null>(null);
 
   const orderedSteps = useMemo(
     () => (runBundle ? sortSteps(runBundle.steps) : []),
@@ -145,6 +150,252 @@ export default function AppClient() {
     }
   }
 
+  async function checkServerHealth() {
+    try {
+      setServerStatus("checking...");
+      const response = await fetch(`${API_BASE}/health`);
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(text || `Health check failed: ${response.status}`);
+      }
+      const payload = await response.json();
+      const status = payload?.status === "ok" ? "ok" : "unknown";
+      setServerStatus(`${status} (${payload?.agents_loaded ? "agents loaded" : "no agents"})`);
+    } catch (err) {
+      setServerStatus(err instanceof Error ? `error: ${err.message}` : "error");
+    }
+  }
+
+  async function runServerStream() {
+    if (!serverQuery.trim()) {
+      setError("Query is required to run the server pipeline.");
+      return;
+    }
+
+    if (streamAbortRef.current) {
+      streamAbortRef.current.abort();
+    }
+
+    const controller = new AbortController();
+    streamAbortRef.current = controller;
+    setIsStreaming(true);
+    setError(null);
+    setServerStatus("streaming...");
+    setIsPlaying(false);
+    setStreamEvents([]);
+    setStreamCursor(0);
+    setSelectedEvent(null);
+    setRunBundle(null);
+
+    type StepState = { input?: unknown; output?: unknown; status?: RunStep["status"] };
+    const stepState: Partial<Record<RunStep["name"], StepState>> = {};
+    const stepOrder: RunStep["name"][] = [
+      "clarify",
+      "plan",
+      "search",
+      "extract",
+      "verify",
+      "write",
+      "visualize"
+    ];
+    const agentToStep: Record<string, RunStep["name"]> = {
+      clarifier: "clarify",
+      searcher: "search",
+      extractor: "extract",
+      verifier: "verify",
+      visualizer: "visualize"
+    };
+
+    const ensureStep = (name: RunStep["name"]): StepState => {
+      if (!stepState[name]) {
+        stepState[name] = {};
+      }
+      return stepState[name] as StepState;
+    };
+
+    const setStepInput = (name: RunStep["name"], input: unknown) => {
+      const step = ensureStep(name);
+      if (step.input === undefined) {
+        step.input = input ?? null;
+      }
+    };
+
+    const setStepOutput = (name: RunStep["name"], output: unknown) => {
+      const step = ensureStep(name);
+      step.output = output ?? null;
+      if (!step.status) {
+        step.status = "ok";
+      }
+    };
+
+    const setStepError = (name: RunStep["name"]) => {
+      const step = ensureStep(name);
+      step.status = "error";
+    };
+
+    const streamEventsBuffer: StreamEvent[] = [];
+    let firstTimestamp: string | null = null;
+    let clarifierOutput: unknown = null;
+    let planOutput: unknown = null;
+
+    try {
+      const response = await fetch(`${API_BASE}/api/run/stream`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          query: serverQuery.trim(),
+          max_clarify_rounds: 2,
+          max_orchestrator_loops: 3,
+          skip_clarify: false
+        }),
+        signal: controller.signal
+      });
+
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(text || `Server error: ${response.status}`);
+      }
+
+      if (!response.body) {
+        throw new Error("Streaming response body is empty.");
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let done = false;
+
+      while (!done) {
+        const { value, done: streamDone } = await reader.read();
+        if (streamDone) {
+          break;
+        }
+        buffer += decoder.decode(value, { stream: true });
+
+        const parts = buffer.split("\n\n");
+        buffer = parts.pop() ?? "";
+
+        for (const part of parts) {
+          const lines = part.split("\n").map((line) => line.trim());
+          for (const line of lines) {
+            if (!line.startsWith("data:")) {
+              continue;
+            }
+            const payloadText = line.replace(/^data:\s*/, "");
+            if (!payloadText) {
+              continue;
+            }
+            if (payloadText === "[DONE]") {
+              done = true;
+              break;
+            }
+
+            const [normalized] = parseStreamEvents(payloadText);
+            if (!normalized) {
+              continue;
+            }
+
+            if (!firstTimestamp) {
+              firstTimestamp = normalized.timestamp;
+            }
+
+            streamEventsBuffer.push(normalized);
+            setStreamEvents((prev) => [...prev, normalized]);
+            setStreamCursor(Math.min(streamEventsBuffer.length, maxEvents));
+            setSelectedEvent((current) => current ?? normalized);
+
+            const agent = normalized.agent ?? "";
+            const stepName = agentToStep[agent];
+
+            if (normalized.type === "agent_start" && stepName) {
+              const payload = normalized.payload as { input?: unknown } | null;
+              setStepInput(stepName, payload?.input ?? null);
+            }
+
+            if (normalized.type === "agent_complete" && stepName) {
+              const payload = normalized.payload as { output?: unknown } | null;
+              setStepOutput(stepName, payload?.output ?? null);
+              if (stepName === "clarify") {
+                clarifierOutput = payload?.output ?? null;
+                if (clarifierOutput) {
+                  setStepInput("plan", { clarifier: clarifierOutput });
+                }
+              }
+              if (stepName === "visualize") {
+                setStepInput("visualize", { report: stepState.write?.output ?? null });
+              }
+            }
+
+            if (normalized.type === "plan_complete") {
+              const payload = normalized.payload as { plan?: unknown } | null;
+              planOutput = payload?.plan ?? null;
+              setStepOutput("plan", planOutput);
+              if (!stepState.plan?.input) {
+                setStepInput("plan", { clarifier: clarifierOutput ?? null });
+              }
+            }
+
+            if (normalized.type === "write_complete") {
+              const payload = normalized.payload as { report?: unknown } | null;
+              setStepOutput("write", payload?.report ?? null);
+              if (planOutput || clarifierOutput) {
+                setStepInput("write", { clarifier: clarifierOutput, plan: planOutput });
+              }
+            }
+
+            if (normalized.type === "agent_complete" && agent === "orchestrator") {
+              const payload = normalized.payload as { output?: { report?: unknown } } | null;
+              if (payload?.output?.report && !stepState.write?.output) {
+                setStepOutput("write", payload.output.report);
+              }
+            }
+
+            if (normalized.type === "error" && stepName) {
+              setStepError(stepName);
+            }
+          }
+        }
+      }
+
+      const steps: RunStep[] = [];
+      for (const name of stepOrder) {
+        const step = stepState[name];
+        if (!step) {
+          continue;
+        }
+        if (step.input === undefined && step.output === undefined) {
+          continue;
+        }
+        steps.push({
+          name,
+          input: step.input ?? null,
+          output: step.output ?? null,
+          status: step.status
+        });
+      }
+
+      const runCandidate = {
+        run_id: `run_server_${Date.now()}`,
+        created_at: firstTimestamp ?? new Date().toISOString(),
+        query: serverQuery.trim(),
+        meta: { mode: "server", api_base: API_BASE },
+        steps
+      };
+
+      const parsed = parseRunBundle(runCandidate);
+      setRunBundle(parsed);
+      setSelectedStep(parsed.steps[0] ?? null);
+      setServerStatus("done");
+    } catch (err) {
+      if ((err as Error).name !== "AbortError") {
+        setError(err instanceof Error ? err.message : "Server stream failed");
+        setServerStatus("error");
+      }
+    } finally {
+      setIsStreaming(false);
+    }
+  }
+
   return (
     <main>
       <header className="header">
@@ -188,6 +439,29 @@ export default function AppClient() {
                 }}
               />
             </label>
+          </div>
+          <div className="control-group">
+            <span className="pill">Server</span>
+            <span className="pill">{API_BASE}</span>
+            <input
+              className="text-input"
+              type="text"
+              value={serverQuery}
+              onChange={(event) => setServerQuery(event.target.value)}
+              placeholder="Enter a research query"
+            />
+            <button
+              className="button primary"
+              type="button"
+              onClick={runServerStream}
+              disabled={isStreaming}
+            >
+              {isStreaming ? "Streaming..." : "Run server stream"}
+            </button>
+            <button className="button" type="button" onClick={checkServerHealth}>
+              Check health
+            </button>
+            {serverStatus ? <span className="pill">{serverStatus}</span> : null}
           </div>
           <div className="control-group">
             <span className="pill">Max events</span>

@@ -65,7 +65,15 @@ optimized_extractor = optimizer.compile(
 )
 ```
 
-### 이 프로젝트에서의 활용
+### 이 프로젝트에서의 활용 (현재/예정)
+
+현재 구현 상태 요약:
+- DSPy는 **Clarifier/Visualizer** 최적화에만 사용 (옵션, `dspy_integration/`).
+- Extract/Verify는 **Agent SDK + 스키마 출력** 기반이며 DSPy 모듈은 아직 적용하지 않음.
+- Orchestrator는 **`main.py`의 상태 기반 루프(MockOrchestrator)** 로 동작 (Agent SDK handoff 미사용).
+- GraphDB는 Docker 설정이 준비되어 있으며, `kg_query`는 v1에서 mock 처리.
+
+아래 예시는 향후 확장/적용 가능한 패턴을 설명한다.
 
 #### 1. 정보 추출 파이프라인
 
@@ -133,7 +141,7 @@ class MergeCandidate(dspy.Signature):
     evidence: str = dspy.OutputField(desc="판단 근거")
 ```
 
-#### 4. 데모 시나리오 에이전트
+#### 4. 데모 시나리오 에이전트 (예시)
 
 멀티 에이전트 워크플로우를 DSPy 모듈로 구성:
 
@@ -187,19 +195,19 @@ class SynthesizeReport(dspy.Signature):
 ### 데모 시나리오와의 매핑
 
 ```
-데모 시나리오 에이전트    →    구현
+데모 시나리오 에이전트    →    구현 (현재 코드 기준)
 ─────────────────────────────────────
 Clarifier Agent         →    Agent with clarification tools
-Orchestrator            →    Handoffs + state management
+Orchestrator            →    `main.py` state-based loop (MockOrchestrator)
 ├─ Planner Agent        →    Agent with planning signature
-Search/Select Agent     →    Agent with web search tools
-Extractor Agent         →    Agent with DSPy extraction modules
-Verifier Agent          →    Agent with verification logic
+Search/Select Agent     →    Agent with search tools + RAG ingest
+Extractor Agent         →    Agent with schema-driven extraction
+Verifier Agent          →    Agent with rag_get_chunk + kg_query (v1 mock)
 Writer Agent            →    Agent with synthesis signature
-Visualizer Agent        →    Agent with UI component tools
+Visualizer Agent        →    Agent with UI component spec output
 ```
 
-### DSPy와의 통합 패턴
+### DSPy와의 통합 패턴 (선택적)
 
 ```python
 from agents import Agent, Tool
@@ -277,11 +285,11 @@ extractor_agent = Agent(
 └─────────────────────────────────────────────────┘
 ```
 
-### 우선순위
+### 우선순위 (현재 기준)
 
-1. **먼저**: 지식 그래프 스키마 + 데이터 수집 (기술적 리스크 먼저)
-2. **다음**: DSPy로 추출/검증 파이프라인 + 평가 지표
-3. **마지막**: Agent SDK로 워크플로우 통합 + UI
+1. **먼저**: 지식 그래프 스키마 확정 + GraphDB 실연동
+2. **다음**: DSPy로 추출/검증 파이프라인 확장 + 평가 지표 고도화
+3. **완료**: Agent SDK 워크플로우 통합 + UI
 
 ---
 
