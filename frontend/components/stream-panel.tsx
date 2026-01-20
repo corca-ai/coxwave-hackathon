@@ -50,6 +50,9 @@ export default function StreamPanel({
       <div className="stream-list">
         {events.map((event) => {
           const isActive = selectedEvent?.id === event.id;
+          const stageLabel =
+            event.stage ??
+            (typeof event.sequence === "number" ? `seq ${event.sequence}` : null);
           return (
             <button
               key={event.id}
@@ -57,14 +60,17 @@ export default function StreamPanel({
               className={`stream-item ${isActive ? "active" : ""}`}
               onClick={() => onSelectEvent(event)}
             >
-              <div className="stream-meta">
+              <div className="stream-item-header">
                 <span className="stream-type">{event.type}</span>
-                <span>{formatTime(event.timestamp)}</span>
+                <span className="stream-agent">
+                  {event.agent ? `agent: ${event.agent}` : "agent: n/a"}
+                </span>
+                <span className="stream-time">{formatTime(event.timestamp)}</span>
               </div>
-              <div className="panel-subtitle">
-                {event.agent ? `agent: ${event.agent}` : "agent: n/a"}
+              <div className="stream-item-body">
+                {stageLabel ? <span className="stream-stage">{stageLabel}</span> : null}
+                <span className="stream-preview">{payloadPreview(event.payload)}</span>
               </div>
-              <div className="panel-subtitle">{payloadPreview(event.payload)}</div>
             </button>
           );
         })}

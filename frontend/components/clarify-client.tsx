@@ -119,6 +119,8 @@ export default function ClarifyClient() {
       final: clarifyOutput
     };
   }, [originalQuery, clarifyOutput, rounds]);
+  const showObservability =
+    pipelineStatus !== "idle" || runBundle !== null || streamEvents.length > 0;
 
   const runMeta = runBundle
     ? `${runBundle.run_id} | ${new Date(runBundle.created_at).toLocaleString()}`
@@ -149,14 +151,14 @@ export default function ClarifyClient() {
         setRunBundle(parsedBundle);
         setSelectedStep(parsedBundle.steps[0] ?? null);
         setStreamEvents(parsedEvents);
-        setStreamCursor(Math.min(parsedEvents.length, maxEvents));
+        setStreamCursor(Math.min(parsedEvents.length, DEFAULT_MAX_EVENTS));
         setSelectedEvent(parsedEvents[0] ?? null);
         return;
       } catch (err) {
         console.warn("Failed to load stored run bundle:", err);
       }
     }
-  }, [maxEvents]);
+  }, []);
 
   useEffect(() => {
     if (!isPlaying) {
@@ -361,8 +363,13 @@ export default function ClarifyClient() {
     setStatus("idle");
     setPipelineStatus("idle");
     setError(null);
+    setRunBundle(null);
+    setSelectedStep(null);
+    setSelectedNode(null);
     setStreamEvents([]);
     setSelectedEvent(null);
+    setStreamCursor(0);
+    setIsPlaying(false);
     setCurrentAgent(null);
   }
 
@@ -376,8 +383,13 @@ export default function ClarifyClient() {
 
     setPipelineStatus("running");
     setError(null);
+    setRunBundle(null);
+    setSelectedStep(null);
+    setSelectedNode(null);
     setStreamEvents([]);
     setSelectedEvent(null);
+    setStreamCursor(0);
+    setIsPlaying(false);
     setCurrentAgent(null);
 
     const streamEventsBuffer: StreamEvent[] = [];
@@ -483,6 +495,7 @@ export default function ClarifyClient() {
 
             streamEventsBuffer.push(normalized);
             setStreamEvents((prev) => [...prev, normalized]);
+            setStreamCursor(Math.min(streamEventsBuffer.length, maxEvents));
             setSelectedEvent((current) => current ?? normalized);
 
             const agent = normalized.agent ?? "";
@@ -568,6 +581,8 @@ export default function ClarifyClient() {
       localStorage.setItem("rn_last_run_bundle", JSON.stringify(parsed));
       localStorage.setItem("rn_last_stream_events", JSON.stringify(streamEventsBuffer));
 
+      setRunBundle(parsed);
+      setSelectedStep(parsed.steps[0] ?? null);
       setPipelineStatus("done");
       setCurrentAgent(null);
     } catch (err) {
@@ -619,7 +634,27 @@ export default function ClarifyClient() {
               <span className="pill">events: {streamEvents.length}</span>
             ) : null}
           </div>
+          <div className="control-group">
+            <span className="pill">Max events</span>
+            <input
+              type="number"
+              min={1}
+              max={9999}
+              value={maxEvents}
+              onChange={(event) => setMaxEvents(Number(event.target.value))}
+            />
+            <span className="pill">Speed x{speed.toFixed(1)}</span>
+            <input
+              type="range"
+              min={0.5}
+              max={3}
+              step={0.1}
+              value={speed}
+              onChange={(event) => setSpeed(Number(event.target.value))}
+            />
+          </div>
         </div>
+        <div className="panel-subtitle">{runMeta}</div>
         {error ? <div className="panel-subtitle">Error: {error}</div> : null}
       </header>
 
@@ -703,52 +738,113 @@ export default function ClarifyClient() {
         </div>
       </section>
 
-      {pipelineStatus !== "idle" && (
-        <section className="clarify-grid" style={{ marginTop: "1rem" }}>
-          <div className="panel">
-            <div className="panel-header">
-              <div>
-                <div className="panel-title">Streaming Timeline</div>
-                <div className="panel-subtitle">Real-time agent events</div>
+      {showObservability ? (
+        <>
+          <section className="grid-top">
+            <div className="panel">
+              <div className="panel-header">
+                <div>
+                  <div className="panel-title">Agent Trace</div>
+                  <div className="panel-subtitle">Input -> output payloads (always visible)</div>
+                </div>
+                <span className="pill">Steps {orderedSteps.length}</span>
               </div>
-              {currentAgent ? (
-                <span className="pill" style={{ backgroundColor: "#22c55e", color: "white" }}>
-                  Running: {currentAgent}
-                </span>
-              ) : null}
+              <TracePanel
+                steps={orderedSteps}
+                selectedStep={selectedStep}
+                onSelectStep={(step) => setSelectedStep(step)}
+              />
             </div>
-            <StreamPanel
-              events={streamEvents}
-              selectedEvent={selectedEvent}
-              onSelectEvent={setSelectedEvent}
-              maxEvents={streamEvents.length}
-              cursor={streamEvents.length}
-            />
-          </div>
 
-          <div className="panel">
-            <div className="panel-header">
-              <div>
-                <div className="panel-title">Selected Event</div>
-                <div className="panel-subtitle">Event payload details</div>
+            <div className="panel">
+              <div className="panel-header">
+                <div>
+                  <div className="panel-title">Evidence Graph</div>
+                  <div className="panel-subtitle">
+                    Sources -> claims -> verifications -> report
+                  </div>
+                </div>
+                <span className="pill">Nodes {graphData.nodes.length}</span>
+              </div>
+              <div className="graph-shell">
+                <GraphPanel
+                  nodes={graphData.nodes}
+                  edges={graphData.edges}
+                  onSelectNode={setSelectedNode}
+                />
               </div>
             </div>
-            <div className="payload-stack">
-              {selectedEvent ? (
-                <section className="payload-section">
-                  <div className="payload-title">{selectedEvent.type}</div>
-                  <div className="payload-sub">
-                    agent: {selectedEvent.agent ?? "n/a"} | stage: {selectedEvent.stage ?? "n/a"}
-                  </div>
-                  <pre className="json-block">{prettyJson(selectedEvent.payload)}</pre>
-                </section>
-              ) : (
-                <div className="panel-subtitle">Select an event to view details.</div>
-              )}
+
+            <div className="panel">
+              <div className="panel-header">
+                <div>
+                  <div className="panel-title">Payload Inspector</div>
+                  <div className="panel-subtitle">Connection verification via raw JSON</div>
+                </div>
+              </div>
+              <PayloadPanel
+                selectedStep={selectedStep}
+                selectedNode={selectedNode}
+                selectedEvent={selectedEvent}
+                prettyJson={prettyJson}
+              />
             </div>
-          </div>
-        </section>
-      )}
+          </section>
+
+          <section className="grid-bottom">
+            <div className="panel">
+              <div className="panel-header">
+                <div>
+                  <div className="panel-title">Streaming Timeline</div>
+                  <div className="panel-subtitle">Real-time agent events</div>
+                </div>
+                <div className="control-group">
+                  {currentAgent ? (
+                    <span className="pill success">Running: {currentAgent}</span>
+                  ) : null}
+                  <button
+                    className="button"
+                    type="button"
+                    onClick={() => setIsPlaying((prev) => !prev)}
+                    disabled={pipelineStatus === "running" || streamEvents.length === 0}
+                  >
+                    {isPlaying ? "Pause" : "Play"}
+                  </button>
+                  <button
+                    className="button"
+                    type="button"
+                    onClick={() => {
+                      setStreamCursor(0);
+                      setIsPlaying(false);
+                    }}
+                    disabled={streamEvents.length === 0}
+                  >
+                    Reset
+                  </button>
+                </div>
+              </div>
+              <StreamPanel
+                events={visibleEvents}
+                selectedEvent={selectedEvent}
+                onSelectEvent={setSelectedEvent}
+                maxEvents={maxVisibleEvents}
+                cursor={streamCursor}
+              />
+            </div>
+
+            <div className="panel">
+              <div className="panel-header">
+                <div>
+                  <div className="panel-title">Visualizer Preview</div>
+                  <div className="panel-subtitle">Rendered from VisualOutput components</div>
+                </div>
+                <span className="pill">Live</span>
+              </div>
+              <ReportPreview reportOutput={reportOutput} visualOutput={visualOutput} />
+            </div>
+          </section>
+        </>
+      ) : null}
     </main>
   );
 }
