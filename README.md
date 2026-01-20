@@ -1,4 +1,4 @@
-# [팀명 입력] - Research Navigator
+# Full HD - Research Navigator
 
 > 연구자, 기업 전략가, 전문직을 위한 자율형 리서치 및 동적 시각화 에이전트
 
@@ -19,8 +19,6 @@
 
 **타겟 유저 (B2B/Enterprise)**:
 - **R&D 연구원**: 선행 기술 조사 시간을 5일 -> 1시간으로 단축
-- **사내 변호사**: 판례 및 법률 리서치 자동화로 업무 효율 50% 증대
-- **신사업 PM**: 시장 동향 및 경쟁사 분석 보고서 즉시 생성
 
 ## 솔루션
 
@@ -30,11 +28,11 @@
 2. **Plan**: 기업 환경에 맞는 단계별 리서치 계획 수립 및 승인
 3. **Search & Extract**: Arxiv 등 신뢰할 수 있는 소스에서 심층 조사 및 정보 추출
 4. **Verify**: 추출된 정보의 출처와 사실 관계를 교차 검증 (Cross-Check)
-5. **Synthesize**: 경영진 보고용 리포트 자동 생성 및 시각화
+5. **Synthesize**: 리포트 자동 생성 및 시각화
 
 핵심 차별점:
 
-- **Self-Healing Knowledge Graph**: 단순 검색이 아닌, 정보 간의 인과 관계와 모순을 그래프로 구조화하여 분석
+- **Self-Healing Knowledge Graph**: 단순 검색이 아닌, 정보 간의 인과 관계와 모순을 구조화하여 분석
 - **Enterprise-Grade Safety**: 입력 데이터 보호 및 출력 결과의 신뢰성 보장 (Guardrails 적용)
 - **Full Observability**: 에이전트의 모든 사고 과정과 데이터 흐름을 실시간으로 추적 가능
 
@@ -70,7 +68,7 @@
 - [x] **Safety & Guardrails** (입출력 필터링 및 할루시네이션 방지)
 - [x] **Observability** (실시간 추적 및 DSPy 최적화 리포트)
 
-## 성공 기준 (Demo)
+## 성공 기준
 
 ## 에이전트 구현 현황
 
@@ -307,15 +305,6 @@ python3 evals_cli.py --agent clarifier --engine dspy --dataset evals/datasets/cl
 - `EVAL_MAX_SAMPLES`로 평가 샘플 상한을 설정할 수 있으며, `--max-samples`로 오버라이드한다.
 - 결과 로그는 기본적으로 `evals/_artifacts/`에 저장되며, `EVAL_ARTIFACT_DIR`로 변경 가능하다.
 - 다른 에이전트 평가/최적화 경로는 `docs/dspy.md` 참고.
-
-## 향후 계획
-
-- [ ] 지식 그래프 스키마 확정 및 초기 데이터 수집
-- [x] DSPy 기반 추출/검증 파이프라인 구축
-- [ ] Agent SDK로 워크플로우 통합
-- [x] UI 구현 및 Observability 추가 (Graph/Trace/Streaming, local demo)
-- [ ] Vercel 배포 (Frontend)
-- [ ] Self-Healing 파이프라인 자동화
 
 ## 팀원
 
