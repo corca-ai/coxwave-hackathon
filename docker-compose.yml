@@ -71,12 +71,10 @@ services:
 volumes:
   graphdb_data:
     name: researcher-graphdb-data
-    external: true
   qdrant_data:
     name: researcher-qdrant-data
-    external: true
 
 networks:
   researcher-network:
     name: researcher-network
-    external: true
+    driver: bridge
