@@ -1,6 +1,7 @@
 """arXiv API client for paper search."""
 
 import re
+from datetime import datetime, timezone
 from dataclasses import dataclass
 
 import arxiv
@@ -42,9 +43,12 @@ class ArxivClient:
             sort_order=arxiv.SortOrder.Descending,
         )
         candidates = []
+        min_year = datetime.now(timezone.utc).year - params.time_range_years
         for result in self.client.results(search):
             candidate = self._parse_result(result)
             if candidate:
+                if candidate.year < min_year:
+                    continue
                 candidates.append(candidate)
         return candidates
 
