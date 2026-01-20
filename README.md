@@ -37,6 +37,9 @@ python -m src.runner \
   --namespace demo \
   --target-docs 20 \
   --artifacts-dir artifacts
+Visualizer 단독 실행:
+```bash
+python3 visualizer_cli.py --input path/to/report.json
 ```
 
 ## 문제 정의
@@ -64,6 +67,45 @@ python -m src.runner \
 - **지식 그래프 기반**: 단순 검색이 아닌, 문서 간 관계(인용, 확장, 반박)를 구조화
 - **Self-Healing 데이터**: 품질 지표 기반 자동 개선 (고립 노드 탐지, 연결성 강화)
 - **Observability**: 에이전트 동작 과정을 사용자에게 투명하게 공개
+
+## 데모 시나리오
+
+- 사용자가 질의를 입력
+- Clarifier가 의도 파악 및 필요한 질문
+- 충분히 명확해지면 “이 방식으로 연구할까요?” 확인
+- 승인 시 Orchestrator가 자동 진행하며 Verifier가 증거 충분성을 판단
+- 부족하면 Search → Extract → Verify 루프를 수행
+- Writer가 최종 JSON 리포트를 생성
+- (Optional) Visualizer가 사전 컴포넌트를 조합
+- 최종 결과 출력
+
+## 성공 기준 (Demo)
+
+- **End-to-end completion**: 벤치마크 3개 질의에서 모든 단계 완료 및 종료 코드 0
+- **Clarification quality**: 모호한 질의 1개 이상에서 clarifying question ≥1개, 답변이 Planner 컨텍스트에 반영
+- **Plan approval**: 각 질의에서 1회 이내 수정으로 계획 승인
+- **Evidence sufficiency**: Verifier가 `is_enough = true` 및 supported claim ≥2개(각각 `source_id`+evidence 포함)
+- **Report completeness**: executive summary, key findings ≥3, citations가 sources와 정합
+- **Observability**: 모든 단계 JSON 출력, 데모 환경에서 질의당 3분 내 완료
+- **Automated E2E**: mock 모드 end-to-end 테스트가 무인으로 통과
+
+## 조건 충족 여부
+
+- [ ] OpenAI API 사용 (일부 에이전트만 적용)
+- [ ] 멀티에이전트 구현
+- [x] 실행 가능한 데모 (Mock)
+
+## 에이전트 구현 현황
+
+| Agent | Status | Notes |
+| --- | --- | --- |
+| Clarifier | Implemented (OpenAI Agents SDK) | 단독 CLI + 단위 테스트 |
+| Planner | Mock | placeholder |
+| Searcher | Mock | placeholder |
+| Extractor | Mock | placeholder |
+| Verifier | Mock | placeholder |
+| Writer | Mock | placeholder |
+| Visualizer | Implemented (OpenAI Agents SDK) | 단독 CLI + 단위 테스트 |
 
 ## 아키텍처
 
@@ -162,6 +204,7 @@ def build_agents() -> DemoAgents:
 - [demo-scenario.md](./demo-scenario.md) - 데모 시나리오 상세
 - [meta-strategy.md](./meta-strategy.md) - 개발 전략
 - [problem-1pager-demo.md](./plans/002-demo/problem-1pager.md) - 데모 성공 기준/측정
+- [visual-output.schema.json](./docs/schemas/visual-output.schema.json) - Visualizer JSON 스키마
 - [retrospective.md](./retrospective.md) - 기존 시스템 구축 회고
 - [kg2 스킬 문서](../.claude/skills/kg2/SKILL.md) - 그래프 운영 규칙/스키마 정본
 - [Search Agent 설계 문서](docs/plans/2026-01-20-search-agent-design.md)
@@ -178,6 +221,9 @@ pytest tests/ -v
 # OPENAI_API_KEY가 없으면 자동으로 skip
 python3 -m unittest tests/test_clarifier.py
 
+# Visualizer 단위 테스트 (OPENAI_API_KEY가 없으면 자동으로 skip)
+python3 -m unittest tests/test_visualizer.py
+
 # Demo E2E (mock)
 python3 -m unittest tests/test_demo_e2e.py
 ```
@@ -187,6 +233,12 @@ python3 -m unittest tests/test_demo_e2e.py
 ```bash
 # Clarifier 단독 확인
 python3 clarifier_cli.py --query "AI alignment"
+
+# Visualizer 단독 확인 (ReportOutput JSON 필요)
+python3 visualizer_cli.py --input path/to/report.json
+
+# Visualizer 단독 확인 (테스트 fixture 사용)
+python3 visualizer_cli.py --input tests/fixtures/visualizer_report.json
 
 # 데모 시나리오 전체 (mock)
 python3 main.py --mock --query "Investigate RAG and hallucination in legal QA"
