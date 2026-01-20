@@ -527,7 +527,7 @@ export default function AppClient() {
           <div className="panel-header">
             <div>
               <div className="panel-title">Evidence Graph</div>
-              <div className="panel-subtitle">Sources -> claims -> verifications -> report</div>
+              <div className="panel-subtitle">Sources → claims → verifications → report</div>
             </div>
             <span className="pill">Nodes {graphData.nodes.length}</span>
           </div>
