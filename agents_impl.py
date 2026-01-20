@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 from dataclasses import replace
+from pathlib import Path
 from typing import Any, Optional
 
 from agents import Agent, AgentOutputSchema, ModelSettings, Runner
@@ -13,13 +15,29 @@ from main import (
     MockExtractor,
     MockOrchestrator,
     MockPlanner,
-    MockSearcher,
-    MockVerifier,
     MockWriter,
+    SearchOutput,
+    Source,
+    VerifyOutput,
+    Verification,
     VisualComponent,
     VisualOutput,
 )
 from env_loader import load_env
+
+# src/ 경로 추가
+sys.path.insert(0, str(Path(__file__).parent / "src"))
+
+from agent.search.agent import search_agent
+from agent.search.schemas import SearchRequest, Constraints as SearchConstraints
+from agent.verify.agent import verifier_agent
+from agent.verify.schemas import (
+    VerifierRequest,
+    VerifierConstraints,
+    ExtractorResult,
+    Claim as VerifyClaim,
+    Evidence,
+)
 
 
 class OpenAIClarifier:
@@ -87,6 +105,132 @@ def _normalize_clarify_output(output: ClarifyOutput, query: str) -> ClarifyOutpu
 
 def _is_ambiguous(query: str) -> bool:
     return len(query.split()) <= 4
+
+
+class OpenAISearcher:
+    """src/agent/search/agent.py의 search_agent 사용."""
+
+    def run(self, context: str) -> SearchOutput:
+        load_env(keys=["OPENAI_API_KEY"])
+        if not os.getenv("OPENAI_API_KEY"):
+            raise RuntimeError("OPENAI_API_KEY is not set.")
+
+        # context에서 goal 추출
+        try:
+            ctx = json.loads(context)
+            goal = ctx.get("plan", {}).get("plan_summary", "")
+            if not goal:
+                goal = ctx.get("clarifier", {}).get("final", {}).get("interpreted_query", "research")
+        except json.JSONDecodeError:
+            goal = context
+
+        # SearchRequest 생성
+        request = SearchRequest(
+            goal=goal,
+            namespace="default",
+            constraints=SearchConstraints(
+                target_new_docs=5,
+                max_candidates=20,
+                max_selected=5,
+                time_range_years=5,
+                loop_budget=1,
+            ),
+        )
+
+        # search_agent 실행
+        result = Runner.run_sync(search_agent, request.model_dump_json())
+        search_result = result.final_output
+
+        # SearchResult -> main.py의 SearchOutput으로 변환
+        sources = []
+        for paper in search_result.selected_papers:
+            sources.append(Source(
+                source_id=paper.arxiv_id,
+                title=paper.title,
+                url=paper.url,
+                snippet=paper.abstract[:300] + "..." if len(paper.abstract) > 300 else paper.abstract,
+                why_relevant=paper.why_selected or "Relevant to research goal",
+            ))
+
+        return SearchOutput(
+            refined_query=", ".join(search_result.query_plan.queries) if search_result.query_plan.queries else goal,
+            sources=sources,
+        )
+
+
+class OpenAIVerifier:
+    """src/agent/verify/agent.py의 verifier_agent 사용."""
+
+    def run(self, context: str) -> VerifyOutput:
+        load_env(keys=["OPENAI_API_KEY"])
+        if not os.getenv("OPENAI_API_KEY"):
+            raise RuntimeError("OPENAI_API_KEY is not set.")
+
+        # context 파싱 (main.py의 ExtractOutput)
+        try:
+            ctx = json.loads(context)
+            claims_data = ctx.get("claims", [])
+        except json.JSONDecodeError:
+            claims_data = []
+
+        # main.py claims -> verifier schema로 변환
+        verify_claims = []
+        for i, c in enumerate(claims_data):
+            verify_claims.append(VerifyClaim(
+                claim_id=f"c{i+1}",
+                doc_id=c.get("source_id", "unknown"),
+                text=c.get("claim", ""),
+                evidence=Evidence(
+                    chunk_id="chunk_0",
+                    quote=c.get("evidence", ""),
+                ) if c.get("evidence") else None,
+                confidence=c.get("confidence", 0.5),
+            ))
+
+        # VerifierRequest 생성
+        request = VerifierRequest(
+            goal="Verify extracted claims",
+            namespace="default",
+            extractor_result=ExtractorResult(
+                claims=verify_claims,
+                paper_cards=[],
+                concepts=[],
+            ),
+            constraints=VerifierConstraints(
+                evidence_min=1,
+                max_loops=1,
+            ),
+        )
+
+        # verifier_agent 실행
+        result = Runner.run_sync(verifier_agent, request.model_dump_json())
+        verifier_result = result.final_output
+
+        # VerifierResult -> main.py의 VerifyOutput으로 변환
+        verdicts = []
+        for judgement in verifier_result.claim_judgements:
+            original_claim = next(
+                (c for c in verify_claims if c.claim_id == judgement.claim_id),
+                None
+            )
+            verdicts.append(Verification(
+                claim=original_claim.text if original_claim else judgement.claim_id,
+                verdict=judgement.status,
+                rationale=judgement.reason,
+                confidence=0.8 if judgement.status == "supported" else 0.4,
+                source_id=original_claim.doc_id if original_claim else None,
+            ))
+
+        # next_actions에서 검색 쿼리 추출
+        next_queries = []
+        for action in verifier_result.next_actions:
+            next_queries.extend(action.suggested_queries)
+
+        return VerifyOutput(
+            verdicts=verdicts,
+            is_enough=verifier_result.quality_gate.passed,
+            next_search_queries=next_queries,
+        )
 
 
 class OpenAIVisualizer:
@@ -259,9 +403,9 @@ def _normalize_visual_output(output: VisualOutput, report: dict[str, Any]) -> Vi
 
 def build_agents() -> DemoAgents:
     planner = MockPlanner()
-    searcher = MockSearcher()
+    searcher = OpenAISearcher()   # 실제 search_agent 사용
     extractor = MockExtractor()
-    verifier = MockVerifier()
+    verifier = OpenAIVerifier()   # 실제 verifier_agent 사용
     writer = MockWriter()
 
     return DemoAgents(
