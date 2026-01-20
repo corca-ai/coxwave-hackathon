@@ -5,6 +5,7 @@
 ## 데모
 
 CLI 데모 (Mock):
+
 ```bash
 python3 main.py --mock --query "Which techniques improve long-context reliability?"
 ```
@@ -18,6 +19,7 @@ python3 clarifier_cli.py --query "Ambiguous short query"
 ## 문제 정의
 
 새로운 분야를 탐구할 때 연구자들은:
+
 - 방대한 자료를 수집하고 파편화된 지식을 연결하는 데 많은 시간을 소비
 - 수집된 문서들 간의 맥락과 관계를 파악하기 어려움
 - 인사이트를 효과적으로 시각화하고 전달하는 데 추가 노력 필요
@@ -35,6 +37,7 @@ python3 clarifier_cli.py --query "Ambiguous short query"
 5. **Synthesize**: 리포트 합성 및 시각화
 
 핵심 차별점:
+
 - **지식 그래프 기반**: 단순 검색이 아닌, 문서 간 관계(인용, 확장, 반박)를 구조화
 - **Self-Healing 데이터**: 품질 지표 기반 자동 개선 (고립 노드 탐지, 연결성 강화)
 - **Observability**: 에이전트 동작 과정을 사용자에게 투명하게 공개
@@ -104,17 +107,17 @@ python3 clarifier_cli.py --query "Ambiguous short query"
 
 ### 에이전트 역할
 
-| Agent | 역할 | 입력 | 출력 |
-|-------|------|------|------|
-| Clarifier | 질의 명확화 | 사용자 질의 | 명확화된 질의 + 연구 범위 |
-| Search | 논문 검색 및 필터링 | 검색 쿼리 | 관련 논문 목록 |
-| Extractor | 구조화된 정보 추출 | 논문 텍스트 | Claim, Concept, 메타데이터 |
-| Verifier | 품질 검증 | Claim + Evidence | 검증 결과 + 신뢰도 |
-| Writer | 리포트 합성 | 검증된 Claim들 | 구조화된 리포트 |
+| Agent     | 역할                | 입력             | 출력                       |
+| --------- | ------------------- | ---------------- | -------------------------- |
+| Clarifier | 질의 명확화         | 사용자 질의      | 명확화된 질의 + 연구 범위  |
+| Search    | 논문 검색 및 필터링 | 검색 쿼리        | 관련 논문 목록             |
+| Extractor | 구조화된 정보 추출  | 논문 텍스트      | Claim, Concept, 메타데이터 |
+| Verifier  | 품질 검증           | Claim + Evidence | 검증 결과 + 신뢰도         |
+| Writer    | 리포트 합성         | 검증된 Claim들   | 구조화된 리포트            |
 
 ## 기술 스택
 
-- **LLM**: OpenAI GPT-4o / GPT-4o-mini
+- **LLM**: OpenAI GPT-5.2 / GPT-5-mini
 - **에이전트 프레임워크**: [OpenAI Agent SDK (Python)](https://github.com/openai/openai-agents-python/)
 - **파이프라인 최적화**: [DSPy](https://dspy.ai/) - metric 기반 자동 최적화
 - **지식 그래프**: GraphDB (OWL 추론 + SHACL 검증)
