@@ -77,6 +77,7 @@ tests/**/CLAUDE.md
 venv/
 .env
 tests/_artifacts/
+frontend/tests/_artifacts/
 
 # Build artifacts
 build/

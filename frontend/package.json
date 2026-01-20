@@ -1,0 +1,30 @@
+{
+  "name": "coxwave-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "test": "vitest",
+    "test:unit": "vitest run",
+    "test:e2e": "node scripts/e2e-demo.mjs"
+  },
+  "dependencies": {
+    "@xyflow/react": "^12.4.0",
+    "dotenv": "^16.4.5",
+    "next": "^14.2.8",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.1",
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "jsdom": "^24.1.1",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.4"
+  }
+}

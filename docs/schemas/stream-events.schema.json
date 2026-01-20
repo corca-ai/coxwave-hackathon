@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "stream-events.schema.json",
+  "title": "StreamEvent",
+  "$comment": "Each line in NDJSON stream logs should conform to this schema.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "timestamp", "type", "payload"],
+  "properties": {
+    "id": { "type": "string" },
+    "timestamp": { "type": "string", "format": "date-time" },
+    "type": { "type": "string" },
+    "agent": { "type": "string" },
+    "stage": { "type": "string" },
+    "sequence": { "type": "integer", "minimum": 0 },
+    "payload": {
+      "type": ["object", "array", "string", "number", "boolean", "null"]
+    }
+  }
+}
