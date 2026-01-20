@@ -15,26 +15,32 @@
 ## Task 1: 프로젝트 구조 생성
 
 **Files:**
-- Create: `src/search_agent/__init__.py`
-- Create: `src/search_agent/tools/__init__.py`
-- Create: `src/search_agent/clients/__init__.py`
+- Create: `src/__init__.py`
+- Create: `src/agents/__init__.py`
+- Create: `src/agents/search/__init__.py`
+- Create: `src/agents/search/tools/__init__.py`
+- Create: `src/agents/search/clients/__init__.py`
+- Create: `src/shared/__init__.py`
 - Create: `pyproject.toml`
 - Create: `.env.example`
 
 **Step 1: 디렉토리 구조 생성**
 
 ```bash
-mkdir -p src/search_agent/tools src/search_agent/clients
-touch src/search_agent/__init__.py
-touch src/search_agent/tools/__init__.py
-touch src/search_agent/clients/__init__.py
+mkdir -p src/agents/search/tools src/agents/search/clients src/shared
+touch src/__init__.py
+touch src/agents/__init__.py
+touch src/agents/search/__init__.py
+touch src/agents/search/tools/__init__.py
+touch src/agents/search/clients/__init__.py
+touch src/shared/__init__.py
 ```
 
 **Step 2: pyproject.toml 작성**
 
 ```toml
 [project]
-name = "search-agent"
+name = "researcher"
 version = "0.1.0"
 requires-python = ">=3.11"
 dependencies = [
@@ -67,7 +73,7 @@ pythonpath = ["src"]
 
 ```bash
 OPENAI_API_KEY=sk-...
-OPENAI_MODEL=gpt-4o
+OPENAI_MODEL=gpt-5-mini
 ARTIFACTS_DIR=artifacts
 ```
 
@@ -83,7 +89,7 @@ git commit -m "chore: initialize search-agent project structure"
 ## Task 2: Pydantic 스키마 정의
 
 **Files:**
-- Create: `src/search_agent/schemas.py`
+- Create: `src/agents/search/schemas.py`
 - Create: `tests/test_schemas.py`
 
 **Step 1: 테스트 먼저 작성**
@@ -91,7 +97,7 @@ git commit -m "chore: initialize search-agent project structure"
 ```python
 # tests/test_schemas.py
 import pytest
-from search_agent.schemas import (
+from agents.search.schemas import (
     SearchRequest,
     SearchResult,
     Candidate,
@@ -140,12 +146,12 @@ def test_search_result_structure():
 pytest tests/test_schemas.py -v
 ```
 
-Expected: FAIL - `ModuleNotFoundError: No module named 'search_agent'`
+Expected: FAIL - `ModuleNotFoundError: No module named 'agents'`
 
 **Step 3: 스키마 구현**
 
 ```python
-# src/search_agent/schemas.py
+# src/agents/search/schemas.py
 from pydantic import BaseModel, Field
 from typing import Literal
 
@@ -238,7 +244,7 @@ Expected: PASS
 **Step 5: 커밋**
 
 ```bash
-git add src/search_agent/schemas.py tests/test_schemas.py
+git add src/agents/search/schemas.py tests/test_schemas.py
 git commit -m "feat: add pydantic schemas for SearchRequest/SearchResult"
 ```
 
@@ -247,7 +253,7 @@ git commit -m "feat: add pydantic schemas for SearchRequest/SearchResult"
 ## Task 3: Config 모듈 구현
 
 **Files:**
-- Create: `src/search_agent/config.py`
+- Create: `src/shared/config.py`
 - Create: `tests/test_config.py`
 
 **Step 1: 테스트 작성**
@@ -262,11 +268,11 @@ def test_settings_defaults(monkeypatch):
     monkeypatch.setenv("OPENAI_API_KEY", "test-key")
 
     # Re-import to pick up env var
-    from search_agent.config import Settings
+    from shared.config import Settings
     settings = Settings()
 
     assert settings.openai_api_key == "test-key"
-    assert settings.openai_model == "gpt-4o"
+    assert settings.openai_model == "gpt-5-mini"
     assert settings.artifacts_dir == "artifacts"
 ```
 
@@ -281,13 +287,13 @@ Expected: FAIL
 **Step 3: Config 구현**
 
 ```python
-# src/search_agent/config.py
+# src/shared/config.py
 from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
     openai_api_key: str
-    openai_model: str = "gpt-4o"
+    openai_model: str = "gpt-5-mini"
     artifacts_dir: str = "artifacts"
 
     class Config:
@@ -310,8 +316,8 @@ Expected: PASS
 **Step 5: 커밋**
 
 ```bash
-git add src/search_agent/config.py tests/test_config.py
-git commit -m "feat: add config module with pydantic-settings"
+git add src/shared/config.py tests/test_config.py
+git commit -m "feat: add shared config module with pydantic-settings"
 ```
 
 ---
@@ -319,7 +325,7 @@ git commit -m "feat: add config module with pydantic-settings"
 ## Task 4: arXiv 클라이언트 구현
 
 **Files:**
-- Create: `src/search_agent/clients/arxiv_client.py`
+- Create: `src/agents/search/clients/arxiv_client.py`
 - Create: `tests/test_arxiv_client.py`
 
 **Step 1: 테스트 작성 (모킹 사용)**
@@ -329,7 +335,7 @@ git commit -m "feat: add config module with pydantic-settings"
 import pytest
 from unittest.mock import Mock, patch
 from datetime import datetime
-from search_agent.clients.arxiv_client import ArxivClient, ArxivSearchParams
+from agents.search.clients.arxiv_client import ArxivClient, ArxivSearchParams
 
 
 def test_build_query_simple():
@@ -380,12 +386,12 @@ Expected: FAIL
 **Step 3: arXiv 클라이언트 구현**
 
 ```python
-# src/search_agent/clients/arxiv_client.py
+# src/agents/search/clients/arxiv_client.py
 import arxiv
 import re
 from datetime import datetime, timedelta
 from dataclasses import dataclass
-from search_agent.schemas import Candidate
+from agents.search.schemas import Candidate
 
 
 @dataclass
@@ -476,7 +482,7 @@ Expected: PASS
 **Step 5: 커밋**
 
 ```bash
-git add src/search_agent/clients/arxiv_client.py tests/test_arxiv_client.py
+git add src/agents/search/clients/arxiv_client.py tests/test_arxiv_client.py
 git commit -m "feat: add arXiv client for paper search"
 ```
 
@@ -485,7 +491,7 @@ git commit -m "feat: add arXiv client for paper search"
 ## Task 5: 로컬 저장소 구현
 
 **Files:**
-- Create: `src/search_agent/clients/local_store.py`
+- Create: `src/agents/search/clients/local_store.py`
 - Create: `tests/test_local_store.py`
 
 **Step 1: 테스트 작성**
@@ -495,8 +501,8 @@ git commit -m "feat: add arXiv client for paper search"
 import pytest
 import json
 from pathlib import Path
-from search_agent.clients.local_store import LocalStore
-from search_agent.schemas import Candidate, SearchResult, QueryPlan, IngestSummary
+from agents.search.clients.local_store import LocalStore
+from agents.search.schemas import Candidate, SearchResult, QueryPlan, IngestSummary
 
 
 @pytest.fixture
@@ -561,10 +567,10 @@ Expected: FAIL
 **Step 3: 로컬 저장소 구현**
 
 ```python
-# src/search_agent/clients/local_store.py
+# src/agents/search/clients/local_store.py
 import json
 from pathlib import Path
-from search_agent.schemas import Candidate, SearchResult
+from agents.search.schemas import Candidate, SearchResult
 
 
 class LocalStore:
@@ -631,7 +637,7 @@ Expected: PASS
 **Step 5: 커밋**
 
 ```bash
-git add src/search_agent/clients/local_store.py tests/test_local_store.py
+git add src/agents/search/clients/local_store.py tests/test_local_store.py
 git commit -m "feat: add local JSON store for paper persistence"
 ```
 
@@ -640,8 +646,8 @@ git commit -m "feat: add local JSON store for paper persistence"
 ## Task 6: Ranking & Dedup 로직 구현
 
 **Files:**
-- Create: `src/search_agent/ranking.py`
-- Create: `src/search_agent/dedup.py`
+- Create: `src/agents/search/ranking.py`
+- Create: `src/agents/search/dedup.py`
 - Create: `tests/test_ranking.py`
 - Create: `tests/test_dedup.py`
 
@@ -650,8 +656,8 @@ git commit -m "feat: add local JSON store for paper persistence"
 ```python
 # tests/test_dedup.py
 import pytest
-from search_agent.dedup import dedupe_candidates
-from search_agent.schemas import Candidate
+from agents.search.dedup import dedupe_candidates
+from agents.search.schemas import Candidate
 
 
 def make_candidate(arxiv_id: str, title: str = "Title") -> Candidate:
@@ -690,8 +696,8 @@ def test_dedupe_preserves_order():
 ```python
 # tests/test_ranking.py
 import pytest
-from search_agent.ranking import rank_candidates, calculate_score
-from search_agent.schemas import Candidate
+from agents.search.ranking import rank_candidates, calculate_score
+from agents.search.schemas import Candidate
 
 
 def make_candidate(arxiv_id: str, year: int, title: str = "Title") -> Candidate:
@@ -734,8 +740,8 @@ Expected: FAIL
 **Step 4: Dedup 구현**
 
 ```python
-# src/search_agent/dedup.py
-from search_agent.schemas import Candidate
+# src/agents/search/dedup.py
+from agents.search.schemas import Candidate
 
 
 def dedupe_candidates(
@@ -757,10 +763,10 @@ def dedupe_candidates(
 **Step 5: Ranking 구현**
 
 ```python
-# src/search_agent/ranking.py
+# src/agents/search/ranking.py
 import re
 from datetime import datetime
-from search_agent.schemas import Candidate
+from agents.search.schemas import Candidate
 
 
 def calculate_score(candidate: Candidate, keywords: list[str]) -> float:
@@ -809,7 +815,7 @@ Expected: PASS
 **Step 7: 커밋**
 
 ```bash
-git add src/search_agent/ranking.py src/search_agent/dedup.py tests/test_ranking.py tests/test_dedup.py
+git add src/agents/search/ranking.py src/agents/search/dedup.py tests/test_ranking.py tests/test_dedup.py
 git commit -m "feat: add ranking and dedup logic for candidates"
 ```
 
@@ -818,7 +824,7 @@ git commit -m "feat: add ranking and dedup logic for candidates"
 ## Task 7: Tools 구현 (search_sources)
 
 **Files:**
-- Create: `src/search_agent/tools/search.py`
+- Create: `src/agents/search/tools/search.py`
 - Create: `tests/test_tools_search.py`
 
 **Step 1: 테스트 작성**
@@ -827,13 +833,13 @@ git commit -m "feat: add ranking and dedup logic for candidates"
 # tests/test_tools_search.py
 import pytest
 from unittest.mock import Mock, patch
-from search_agent.tools.search import search_sources
-from search_agent.schemas import Candidate
+from agents.search.tools.search import search_sources
+from agents.search.schemas import Candidate
 
 
 @pytest.fixture
 def mock_arxiv_client():
-    with patch("search_agent.tools.search.ArxivClient") as mock:
+    with patch("agents.search.tools.search.ArxivClient") as mock:
         client_instance = Mock()
         client_instance.search.return_value = [
             Candidate(
@@ -880,12 +886,12 @@ Expected: FAIL
 **Step 3: search_sources 구현**
 
 ```python
-# src/search_agent/tools/search.py
+# src/agents/search/tools/search.py
 from agents import function_tool
-from search_agent.schemas import Candidate
-from search_agent.clients.arxiv_client import ArxivClient, ArxivSearchParams
-from search_agent.ranking import rank_candidates
-from search_agent.dedup import dedupe_candidates
+from agents.search.schemas import Candidate
+from agents.search.clients.arxiv_client import ArxivClient, ArxivSearchParams
+from agents.search.ranking import rank_candidates
+from agents.search.dedup import dedupe_candidates
 
 
 @function_tool
@@ -950,7 +956,7 @@ Expected: PASS
 **Step 5: 커밋**
 
 ```bash
-git add src/search_agent/tools/search.py tests/test_tools_search.py
+git add src/agents/search/tools/search.py tests/test_tools_search.py
 git commit -m "feat: add search_sources tool with arxiv integration"
 ```
 
@@ -959,7 +965,7 @@ git commit -m "feat: add search_sources tool with arxiv integration"
 ## Task 8: Tools 구현 (RAG - 모킹)
 
 **Files:**
-- Create: `src/search_agent/tools/rag.py`
+- Create: `src/agents/search/tools/rag.py`
 - Create: `tests/test_tools_rag.py`
 
 **Step 1: 테스트 작성**
@@ -968,8 +974,8 @@ git commit -m "feat: add search_sources tool with arxiv integration"
 # tests/test_tools_rag.py
 import pytest
 from pathlib import Path
-from search_agent.tools.rag import rag_ingest_candidates, rag_preview, set_artifacts_dir
-from search_agent.schemas import Candidate, IngestPolicy
+from agents.search.tools.rag import rag_ingest_candidates, rag_preview, set_artifacts_dir
+from agents.search.schemas import Candidate, IngestPolicy
 
 
 @pytest.fixture
@@ -1036,11 +1042,11 @@ Expected: FAIL
 **Step 3: RAG tools 구현**
 
 ```python
-# src/search_agent/tools/rag.py
+# src/agents/search/tools/rag.py
 from pathlib import Path
 from agents import function_tool
-from search_agent.schemas import Candidate, IngestPolicy, IngestSummary, PreviewSnippet
-from search_agent.clients.local_store import LocalStore
+from agents.search.schemas import Candidate, IngestPolicy, IngestSummary, PreviewSnippet
+from agents.search.clients.local_store import LocalStore
 
 # 모듈 레벨 저장소 (테스트에서 교체 가능)
 _store: LocalStore | None = None
@@ -1127,9 +1133,9 @@ Expected: PASS
 **Step 5: tools/__init__.py 업데이트**
 
 ```python
-# src/search_agent/tools/__init__.py
-from search_agent.tools.search import search_sources
-from search_agent.tools.rag import rag_ingest_candidates, rag_preview
+# src/agents/search/tools/__init__.py
+from agents.search.tools.search import search_sources
+from agents.search.tools.rag import rag_ingest_candidates, rag_preview
 
 __all__ = ["search_sources", "rag_ingest_candidates", "rag_preview"]
 ```
@@ -1137,7 +1143,7 @@ __all__ = ["search_sources", "rag_ingest_candidates", "rag_preview"]
 **Step 6: 커밋**
 
 ```bash
-git add src/search_agent/tools/rag.py src/search_agent/tools/__init__.py tests/test_tools_rag.py
+git add src/agents/search/tools/rag.py src/agents/search/tools/__init__.py tests/test_tools_rag.py
 git commit -m "feat: add rag_ingest_candidates and rag_preview tools (mocked)"
 ```
 
@@ -1146,7 +1152,7 @@ git commit -m "feat: add rag_ingest_candidates and rag_preview tools (mocked)"
 ## Task 9: Agent 정의
 
 **Files:**
-- Create: `src/search_agent/agent.py`
+- Create: `src/agents/search/agent.py`
 - Create: `tests/test_agent.py`
 
 **Step 1: 테스트 작성**
@@ -1154,15 +1160,15 @@ git commit -m "feat: add rag_ingest_candidates and rag_preview tools (mocked)"
 ```python
 # tests/test_agent.py
 import pytest
-from search_agent.agent import search_agent, SEARCH_AGENT_INSTRUCTIONS
+from agents.search.agent import search_agent, SEARCH_AGENT_INSTRUCTIONS
 
 
 def test_agent_has_correct_name():
-    assert search_agent.name == "SearchAgent"
+    assert agents.search.name == "SearchAgent"
 
 
 def test_agent_has_tools():
-    tool_names = [t.name for t in search_agent.tools]
+    tool_names = [t.name for t in agents.search.tools]
     assert "search_sources" in tool_names
     assert "rag_ingest_candidates" in tool_names
     assert "rag_preview" in tool_names
@@ -1187,10 +1193,10 @@ Expected: FAIL
 **Step 3: Agent 구현**
 
 ```python
-# src/search_agent/agent.py
+# src/agents/search/agent.py
 from agents import Agent
-from search_agent.tools import search_sources, rag_ingest_candidates, rag_preview
-from search_agent.schemas import SearchResult
+from agents.search.tools import search_sources, rag_ingest_candidates, rag_preview
+from agents.search.schemas import SearchResult
 
 SEARCH_AGENT_INSTRUCTIONS = """
 당신은 연구 논문 검색 에이전트입니다. 사용자의 연구 목표(goal)를 기반으로 학술 자료를 검색하고, knowledge base에 저장합니다.
@@ -1228,7 +1234,7 @@ search_agent = Agent(
     name="SearchAgent",
     instructions=SEARCH_AGENT_INSTRUCTIONS,
     tools=[search_sources, rag_ingest_candidates, rag_preview],
-    model="gpt-4o",
+    model="gpt-5-mini",
     output_type=SearchResult,
 )
 ```
@@ -1244,7 +1250,7 @@ Expected: PASS
 **Step 5: 커밋**
 
 ```bash
-git add src/search_agent/agent.py tests/test_agent.py
+git add src/agents/search/agent.py tests/test_agent.py
 git commit -m "feat: define SearchAgent with instructions and tools"
 ```
 
@@ -1253,21 +1259,21 @@ git commit -m "feat: define SearchAgent with instructions and tools"
 ## Task 10: CLI Runner 구현
 
 **Files:**
-- Create: `src/search_agent/runner.py`
-- Create: `src/search_agent/__main__.py`
+- Create: `src/agents/search/runner.py`
+- Create: `src/agents/search/__main__.py`
 
 **Step 1: Runner 구현**
 
 ```python
-# src/search_agent/runner.py
+# src/agents/search/runner.py
 import json
 import click
 from pathlib import Path
 from agents import Runner
-from search_agent.agent import search_agent
-from search_agent.schemas import SearchRequest, Constraints
-from search_agent.tools.rag import set_artifacts_dir
-from search_agent.clients.local_store import LocalStore
+from agents.search.agent import search_agent
+from agents.search.schemas import SearchRequest, Constraints
+from agents.search.tools.rag import set_artifacts_dir
+from agents.search.clients.local_store import LocalStore
 
 
 @click.command()
@@ -1344,8 +1350,8 @@ if __name__ == "__main__":
 **Step 2: __main__.py 작성**
 
 ```python
-# src/search_agent/__main__.py
-from search_agent.runner import main
+# src/agents/search/__main__.py
+from agents.search.runner import main
 
 if __name__ == "__main__":
     main()
@@ -1354,9 +1360,9 @@ if __name__ == "__main__":
 **Step 3: __init__.py 업데이트**
 
 ```python
-# src/search_agent/__init__.py
-from search_agent.agent import search_agent
-from search_agent.schemas import SearchRequest, SearchResult
+# src/agents/search/__init__.py
+from agents.search.agent import search_agent
+from agents.search.schemas import SearchRequest, SearchResult
 
 __all__ = ["search_agent", "SearchRequest", "SearchResult"]
 ```
@@ -1364,7 +1370,7 @@ __all__ = ["search_agent", "SearchRequest", "SearchResult"]
 **Step 4: 커밋**
 
 ```bash
-git add src/search_agent/runner.py src/search_agent/__main__.py src/search_agent/__init__.py
+git add src/agents/search/runner.py src/agents/search/__main__.py src/agents/search/__init__.py
 git commit -m "feat: add CLI runner for SearchAgent"
 ```
 
@@ -1404,10 +1410,10 @@ def test_full_search_flow(tmp_path, has_api_key):
     if not has_api_key:
         pytest.skip("OPENAI_API_KEY not set")
 
-    from search_agent.tools.rag import set_artifacts_dir
-    from search_agent.tools.search import search_sources
-    from search_agent.tools.rag import rag_ingest_candidates
-    from search_agent.schemas import IngestPolicy
+    from agents.search.tools.rag import set_artifacts_dir
+    from agents.search.tools.search import search_sources
+    from agents.search.tools.rag import rag_ingest_candidates
+    from agents.search.schemas import IngestPolicy
 
     set_artifacts_dir(tmp_path)
 

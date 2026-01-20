@@ -11,7 +11,7 @@
 
 | 항목 | 결정 |
 |------|------|
-| 기존 코드 관계 | 완전 별도 구현 (`src/search_agent/`), kg2는 참고만 |
+| 기존 코드 관계 | 완전 별도 구현 (`src/agents/search/`), kg2는 참고만 |
 | 저장소 | 로컬 JSON (GraphDB는 Extractor 단계에서 연동) |
 | 벡터/RAG | 인터페이스 모킹, 향후 구현 |
 | 검색 소스 | arXiv 공식 API (확장 가능한 구조) |
@@ -49,27 +49,34 @@
 ## 4. 디렉토리 구조
 
 ```
-src/search_agent/
-├── __init__.py
-├── agent.py              # SearchAgent 정의 (openai-agents-python)
-├── runner.py             # CLI 진입점 + Runner.run_sync 호출
-├── schemas.py            # Pydantic 모델
-├── config.py             # 설정 (API endpoints, 기본값)
-├── tools/
+src/
+├── agents/
 │   ├── __init__.py
-│   ├── search.py         # search_sources 툴 (arXiv + 확장 포인트)
-│   └── rag.py            # rag_ingest_candidates, rag_preview (모킹)
-├── clients/
+│   └── search/
+│       ├── __init__.py
+│       ├── agent.py          # SearchAgent 정의 (openai-agents-python)
+│       ├── schemas.py        # Pydantic 모델
+│       ├── tools/
+│       │   ├── __init__.py
+│       │   ├── search.py     # search_sources 툴 (arXiv + 확장 포인트)
+│       │   └── rag.py        # rag_ingest_candidates, rag_preview (모킹)
+│       ├── clients/
+│       │   ├── __init__.py
+│       │   ├── arxiv_client.py   # arXiv API 호출 로직
+│       │   └── local_store.py    # 로컬 JSON 저장소
+│       ├── ranking.py        # 후보 랭킹 로직 (keyword + recency)
+│       └── dedup.py          # 중복 제거 로직
+├── shared/                   # 공유 모듈 (향후 다른 에이전트와 공유)
 │   ├── __init__.py
-│   ├── arxiv_client.py   # arXiv API 호출 로직
-│   └── local_store.py    # 로컬 JSON 저장소
-├── ranking.py            # 후보 랭킹 로직 (keyword + recency)
-└── dedup.py              # 중복 제거 로직
+│   └── config.py             # 설정 (API endpoints, 기본값)
+└── runner.py                 # CLI 진입점
 
 pyproject.toml
 .env.example
-artifacts/                # 실행 결과 저장
+artifacts/                    # 실행 결과 저장
 ```
+
+> **프로젝트 구조**: `src/agents/` 하위에 각 에이전트 모듈 배치. Search Agent는 전체 Researcher 시스템의 구성 요소 중 하나.
 
 ---
 
@@ -239,7 +246,7 @@ search_agent = Agent(
     name="SearchAgent",
     instructions=SEARCH_AGENT_INSTRUCTIONS,
     tools=[search_sources, rag_ingest_candidates, rag_preview],
-    model="gpt-4o",
+    model="gpt-5-mini",  # 또는 "gpt-5.2" for higher quality
     output_type=SearchResult,
 )
 ```
@@ -319,7 +326,7 @@ score = keyword_match(0.6) + recency(0.4)
 ### pyproject.toml
 ```toml
 [project]
-name = "search-agent"
+name = "researcher"
 version = "0.1.0"
 requires-python = ">=3.11"
 dependencies = [
@@ -327,6 +334,7 @@ dependencies = [
     "arxiv>=2.1.0",
     "httpx>=0.27.0",
     "pydantic>=2.0.0",
+    "pydantic-settings>=2.0.0",
     "click>=8.1.0",
     "python-dotenv>=1.0.0",
 ]
@@ -338,7 +346,7 @@ dev = ["pytest>=8.0.0", "ruff>=0.4.0"]
 ### .env.example
 ```bash
 OPENAI_API_KEY=sk-...
-OPENAI_MODEL=gpt-4o
+OPENAI_MODEL=gpt-5-mini
 ARTIFACTS_DIR=artifacts
 ```
 
@@ -348,10 +356,10 @@ ARTIFACTS_DIR=artifacts
 
 ```bash
 # 기본 실행
-python -m search_agent.runner --goal "Graph RAG for scientific papers"
+python -m src.runner search --goal "Graph RAG for scientific papers"
 
 # 옵션 지정
-python -m search_agent.runner \
+python -m src.runner search \
   --goal "LLM agents for code generation" \
   --namespace demo \
   --target-docs 20 \
@@ -362,16 +370,17 @@ python -m search_agent.runner \
 
 ## 13. 구현 체크리스트
 
-1. [ ] 프로젝트 구조 생성 (`src/search_agent/`)
-2. [ ] Pydantic 스키마 정의 (`schemas.py`)
-3. [ ] arXiv 클라이언트 구현 (`clients/arxiv_client.py`)
-4. [ ] 로컬 저장소 구현 (`clients/local_store.py`)
-5. [ ] Ranking/Dedupe 로직 (`ranking.py`, `dedup.py`)
-6. [ ] Tools 구현 (`tools/search.py`, `tools/rag.py`)
-7. [ ] Agent 정의 (`agent.py`)
-8. [ ] CLI Runner (`runner.py`)
-9. [ ] End-to-end 테스트
-10. [ ] artifacts 저장 검증
+1. [ ] 프로젝트 구조 생성 (`src/agents/search/`)
+2. [ ] 공유 Config 모듈 (`src/shared/config.py`)
+3. [ ] Pydantic 스키마 정의 (`schemas.py`)
+4. [ ] arXiv 클라이언트 구현 (`clients/arxiv_client.py`)
+5. [ ] 로컬 저장소 구현 (`clients/local_store.py`)
+6. [ ] Ranking/Dedupe 로직 (`ranking.py`, `dedup.py`)
+7. [ ] Tools 구현 (`tools/search.py`, `tools/rag.py`)
+8. [ ] Agent 정의 (`agent.py`)
+9. [ ] CLI Runner (`src/runner.py`)
+10. [ ] End-to-end 테스트
+11. [ ] artifacts 저장 검증
 
 ---
 
