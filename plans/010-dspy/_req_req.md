@@ -34,4 +34,8 @@ dspy는 requirements.txt 에 없는거야? dev dependencies 같은 걸로라도 
 
 ---
 
-phase 2에서 어떤 작업이 남았지? visualizer에 대해서도 추가됐으면 좋겠는데.
+phase 2에서 어떤 작업이 남았지?
+
+---
+
+README에 dev 설치 설명 후 phase 2 나머지 진행. 그리고 visualizer에 대해서도 동일 하게 해줘. dspy 관련해서는 별도 마크다운 파일을 하나 추가해서 리드미에 링크 걸어 줘. dspy를 이 repo에서 어떻게 사용해서 뭘 할 수 있는지 그 문서만 봐도 알 수 있게.
