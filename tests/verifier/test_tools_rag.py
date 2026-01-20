@@ -1,7 +1,7 @@
 import pytest
 import json
 from pathlib import Path
-from research_agents.verifier.tools.rag import rag_get_chunk, set_artifacts_dir
+from agent.verify.tools.rag import rag_get_chunk, set_artifacts_dir
 
 
 @pytest.fixture
@@ -23,13 +23,13 @@ def setup_papers(tmp_path):
 
 def test_get_chunk_abstract(setup_papers):
     # rag_get_chunk는 FunctionTool이므로 내부 함수 직접 호출
-    from research_agents.verifier.tools.rag import _rag_get_chunk_impl
+    from agent.verify.tools.rag import _rag_get_chunk_impl
     result = _rag_get_chunk_impl("test", "2401.00001", "abstract")
     assert result is not None
     assert "important findings" in result
 
 
 def test_get_chunk_not_found(setup_papers):
-    from research_agents.verifier.tools.rag import _rag_get_chunk_impl
+    from agent.verify.tools.rag import _rag_get_chunk_impl
     result = _rag_get_chunk_impl("test", "9999.99999", "abstract")
     assert result is None

@@ -2,9 +2,9 @@ import json
 import click
 from pathlib import Path
 from agents import Runner
-from research_agents.verifier.agent import verifier_agent
-from research_agents.verifier.schemas import VerifierRequest, ExtractorResult
-from research_agents.verifier.tools.rag import set_artifacts_dir
+from agent.verify.agent import verifier_agent
+from agent.verify.schemas import VerifierRequest, ExtractorResult
+from agent.verify.tools.rag import set_artifacts_dir
 
 
 @click.command()

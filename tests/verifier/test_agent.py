@@ -1,5 +1,5 @@
 import pytest
-from research_agents.verifier.agent import verifier_agent, VERIFIER_AGENT_INSTRUCTIONS
+from agent.verify.agent import verifier_agent, VERIFIER_AGENT_INSTRUCTIONS
 
 
 def test_agent_has_correct_name():
@@ -13,7 +13,7 @@ def test_agent_has_tools():
 
 
 def test_agent_has_output_type():
-    from research_agents.verifier.schemas import VerifierResult
+    from agent.verify.schemas import VerifierResult
     assert verifier_agent.output_type == VerifierResult
 
 

@@ -1,5 +1,5 @@
 import pytest
-from research_agents.verifier.tools.kg import kg_query, _kg_query_impl
+from agent.verify.tools.kg import kg_query, _kg_query_impl
 
 
 def test_kg_query_returns_empty():

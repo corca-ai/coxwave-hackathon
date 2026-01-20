@@ -63,9 +63,9 @@ def test_verifier_agent_full_flow(has_api_key, sample_extractor_result):
         pytest.skip("OPENAI_API_KEY not set")
 
     from agents import Runner
-    from research_agents.verifier.agent import verifier_agent
-    from research_agents.verifier.schemas import VerifierRequest, ExtractorResult
-    from research_agents.verifier.tools.rag import set_artifacts_dir
+    from agent.verify.agent import verifier_agent
+    from agent.verify.schemas import VerifierRequest, ExtractorResult
+    from agent.verify.tools.rag import set_artifacts_dir
 
     tmp_path, result_file = sample_extractor_result
     set_artifacts_dir(tmp_path)
@@ -104,9 +104,9 @@ def test_verifier_agent_empty_claims(has_api_key, tmp_path):
         pytest.skip("OPENAI_API_KEY not set")
 
     from agents import Runner
-    from research_agents.verifier.agent import verifier_agent
-    from research_agents.verifier.schemas import VerifierRequest, ExtractorResult
-    from research_agents.verifier.tools.rag import set_artifacts_dir
+    from agent.verify.agent import verifier_agent
+    from agent.verify.schemas import VerifierRequest, ExtractorResult
+    from agent.verify.tools.rag import set_artifacts_dir
 
     set_artifacts_dir(tmp_path)
 

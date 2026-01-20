@@ -1,5 +1,5 @@
 import pytest
-from research_agents.verifier.schemas import (
+from agent.verify.schemas import (
     VerifierRequest,
     VerifierResult,
     VerifierConstraints,

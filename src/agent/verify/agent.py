@@ -1,6 +1,6 @@
 from agents import Agent
-from research_agents.verifier.tools import rag_get_chunk, kg_query
-from research_agents.verifier.schemas import VerifierResult
+from agent.verify.tools import rag_get_chunk, kg_query
+from agent.verify.schemas import VerifierResult
 
 VERIFIER_AGENT_INSTRUCTIONS = """
 당신은 연구 결과 검증 에이전트입니다. Extractor가 생성한 Claim과 Evidence를 검증하고, Quality Gate 통과 여부를 결정합니다.
