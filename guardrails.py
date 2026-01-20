@@ -6,6 +6,7 @@ Implements input and output guardrails following OpenAI Agent SDK patterns:
 """
 
 from pydantic import BaseModel
+from src.shared.config import MODEL_LIGHT
 from agents import (
     Agent,
     GuardrailFunctionOutput,
@@ -70,7 +71,7 @@ class OverconfidenceCheck(BaseModel):
 
 off_topic_agent = Agent(
     name="OffTopicGuardrail",
-    model="gpt-4o-mini",
+    model=MODEL_LIGHT,
     output_type=OffTopicCheck,
     instructions="""You are a guardrail that checks if a user query is appropriate for a research assistant.
 
@@ -92,7 +93,7 @@ Be lenient - if it could reasonably be research-related, allow it.""",
 
 unethical_research_agent = Agent(
     name="UnethicalResearchGuardrail",
-    model="gpt-4o-mini",
+    model=MODEL_LIGHT,
     output_type=UnethicalResearchCheck,
     instructions="""You are a guardrail that checks if a research query involves unethical topics.
 
@@ -114,7 +115,7 @@ Be balanced - don't block legitimate academic research.""",
 
 pii_agent = Agent(
     name="PIIGuardrail",
-    model="gpt-4o-mini",
+    model=MODEL_LIGHT,
     output_type=PIICheck,
     instructions="""You detect if user input contains sensitive personal information.
 
@@ -134,7 +135,7 @@ DO NOT flag:
 
 hallucination_agent = Agent(
     name="HallucinationGuardrail",
-    model="gpt-4o-mini",
+    model=MODEL_LIGHT,
     output_type=HallucinationCheck,
     instructions="""You check if research output contains unsupported claims.
 
@@ -155,7 +156,7 @@ Add flagged statements to the list for transparency.""",
 
 overconfidence_agent = Agent(
     name="OverconfidenceGuardrail",
-    model="gpt-4o-mini",
+    model=MODEL_LIGHT,
     output_type=OverconfidenceCheck,
     instructions="""You detect overconfident language in research output.
 

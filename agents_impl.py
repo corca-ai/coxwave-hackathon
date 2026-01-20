@@ -12,6 +12,7 @@ from openai.types.responses import ResponseTextDeltaEvent
 
 from stream_events import StreamEvent, StreamEventTypes
 from guardrails import INPUT_GUARDRAILS, OUTPUT_GUARDRAILS
+from src.shared.config import MODEL_HEAVY
 
 from main import (
     ClarifyOutput,
@@ -100,7 +101,7 @@ def _build_model_settings(model: str, temperature: Optional[float]) -> ModelSett
 class OpenAIClarifier:
     def __init__(self, model: Optional[str] = None, temperature: Optional[float] = None) -> None:
         load_env(keys=["OPENAI_API_KEY", "OPENAI_MODEL", "OPENAI_TEMPERATURE"])
-        resolved_model = model or os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+        resolved_model = model or os.getenv("OPENAI_MODEL") or MODEL_HEAVY
         temp_value = temperature
         if temp_value is None:
             temp_value = float(os.getenv("OPENAI_TEMPERATURE", "0.2"))
@@ -323,7 +324,7 @@ class OpenAIPlanner:
 class OpenAISearcher:
     def __init__(self, model: Optional[str] = None) -> None:
         load_env(keys=["OPENAI_API_KEY", "OPENAI_MODEL"])
-        self._model = model or os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+        self._model = model or os.getenv("OPENAI_MODEL") or MODEL_HEAVY
 
     def run(self, context: str) -> SearchOutput:
         load_env(keys=["OPENAI_API_KEY"])
@@ -996,7 +997,7 @@ def _confidence_from_status(status: str) -> float:
 class OpenAIWriter:
     def __init__(self, model: Optional[str] = None, temperature: Optional[float] = None) -> None:
         load_env(keys=["OPENAI_API_KEY", "OPENAI_MODEL", "OPENAI_TEMPERATURE"])
-        resolved_model = model or os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+        resolved_model = model or os.getenv("OPENAI_MODEL") or MODEL_HEAVY
         temp_value = temperature
         if temp_value is None:
             temp_value = float(os.getenv("OPENAI_TEMPERATURE", "0.2"))
@@ -1031,7 +1032,7 @@ class OpenAIWriter:
 class OpenAIVisualizer:
     def __init__(self, model: Optional[str] = None, temperature: Optional[float] = None) -> None:
         load_env(keys=["OPENAI_API_KEY", "OPENAI_MODEL", "OPENAI_TEMPERATURE"])
-        resolved_model = model or os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+        resolved_model = model or os.getenv("OPENAI_MODEL") or MODEL_HEAVY
         temp_value = temperature
         if temp_value is None:
             temp_value = float(os.getenv("OPENAI_TEMPERATURE", "0.2"))

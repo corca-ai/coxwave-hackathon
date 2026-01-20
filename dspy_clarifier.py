@@ -6,6 +6,7 @@ from typing import Any, Optional
 
 from env_loader import load_env
 from main import ClarifyOutput
+from src.shared.config import MODEL_HEAVY
 
 try:
     import dspy  # type: ignore
@@ -139,7 +140,7 @@ class DSPyClarifier:
             model
             or os.getenv("DSPY_MODEL")
             or os.getenv("OPENAI_MODEL")
-            or "gpt-4o-mini"
+            or MODEL_HEAVY
         )
 
         if temperature is None:

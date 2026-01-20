@@ -3,6 +3,7 @@
 from agents import Agent
 from agent.search.tools import search_sources, rag_ingest_candidates, rag_preview
 from agent.search.schemas import SearchResult
+from shared.config import MODEL_HEAVY
 
 SEARCH_AGENT_INSTRUCTIONS = """
 You are a research paper search agent. Search for academic papers based on the user's goal and save them.
@@ -30,6 +31,6 @@ search_agent = Agent(
     name="SearchAgent",
     instructions=SEARCH_AGENT_INSTRUCTIONS,
     tools=[search_sources, rag_ingest_candidates, rag_preview],
-    model="gpt-4o-mini",
+    model=MODEL_HEAVY,
     output_type=SearchResult,
 )
