@@ -15,6 +15,8 @@ from main import (
     ExtractOutput,
     Claim as MainClaim,
     MockOrchestrator,
+    MockWriter,
+    PlanOutput,
     MockPlanner,
     SearchOutput,
     Source,
@@ -58,6 +60,8 @@ from agent.verify.schemas import (
     VerifierResult,
 )
 from agent.verify.tools.rag import set_artifacts_dir as set_verify_artifacts_dir
+from agent.plan.agent import plan_agent
+from agent.plan.schemas import PlannerRequest, PlannerResult
 
 
 @dataclass
@@ -201,6 +205,41 @@ def _extract_goal_from_context(context: str) -> str:
         if isinstance(original, str) and original.strip():
             return original.strip()
     return "Unknown goal"
+
+
+class OpenAIPlanner:
+    """Wrapper for plan_agent that implements the Planner protocol."""
+
+    def __init__(self) -> None:
+        load_env(keys=["OPENAI_API_KEY", "OPENAI_MODEL"])
+
+    def run(self, context: str) -> PlanOutput:
+        load_env(keys=["OPENAI_API_KEY"])
+        if not os.getenv("OPENAI_API_KEY"):
+            raise RuntimeError("OPENAI_API_KEY is not set.")
+
+        # Extract goal from context
+        goal = _extract_goal_from_context(context)
+
+        # Create PlannerRequest
+        request = PlannerRequest(
+            goal=goal,
+            namespace=_get_default_namespace(),
+        )
+
+        # Run plan_agent
+        result = Runner.run_sync(plan_agent, request.model_dump_json())
+        output = result.final_output
+        if not isinstance(output, PlannerResult):
+            raise TypeError("Planner output is not PlannerResult")
+
+        # Convert PlannerResult to main.py PlanOutput
+        return PlanOutput(
+            plan_summary=output.plan_summary,
+            steps=output.steps,
+            success_criteria=output.success_criteria,
+            data_needs=output.data_needs,
+        )
 
 
 class OpenAISearcher:
@@ -897,7 +936,7 @@ def build_agents() -> DemoAgents:
             ) from exc
         visualizer = DSPyVisualizer()
 
-    planner = MockPlanner()
+    planner = OpenAIPlanner()
     searcher = OpenAISearcher()
     extractor = OpenAIExtractor()
     verifier = OpenAIVerifier()
