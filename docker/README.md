@@ -62,8 +62,14 @@ Repository 생성 후:
 2. `docker/graphdb/init/ontology.ttl` 업로드
 3. **Import** 클릭
 
-### 3. Qdrant Collection 생성 (선택)
+### 3. Qdrant Collection 생성
 
+**방법 1: 스크립트 사용 (권장)**
+```bash
+PYTHONPATH=src python scripts/init_qdrant.py
+```
+
+**방법 2: curl 사용**
 ```bash
 curl -X PUT http://localhost:6333/collections/papers \
   -H "Content-Type: application/json" \
@@ -73,6 +79,12 @@ curl -X PUT http://localhost:6333/collections/papers \
       "distance": "Cosine"
     }
   }'
+```
+
+### 4. Collection 확인
+
+```bash
+curl http://localhost:6333/collections/papers
 ```
 
 ## 데이터 영속성

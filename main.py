@@ -493,7 +493,7 @@ class MockOrchestrator:
             "plan": asdict(plan_out),
             "supported_claims": [asdict(v) for v in supported],
             "weak_claims": [asdict(v) for v in weak],
-            "total_sources": len(accumulated_sources),
+            "sources": [asdict(s) for s in accumulated_sources],
             "loops_used": loops_used,
         })
         report_out = self.writer.run(writer_context)
