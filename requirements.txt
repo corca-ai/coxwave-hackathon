@@ -1,2 +1,5 @@
 openai-agents
 arxiv
+fastapi
+uvicorn[standard]
+sse-starlette
