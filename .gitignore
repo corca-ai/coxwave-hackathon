@@ -71,6 +71,7 @@ requirements/CLAUDE.md
 .venv/
 venv/
 .env
+tests/_artifacts/
 
 # Build artifacts
 build/

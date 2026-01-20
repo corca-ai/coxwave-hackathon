@@ -303,7 +303,11 @@ def load_agents(use_mock: bool) -> DemoAgents:
 
 def run_demo(agents: DemoAgents, query: str, visualize: bool) -> int:
     print_section("Clarify")
-    clarify_out = agents.clarifier.run(query)
+    try:
+        clarify_out = agents.clarifier.run(query)
+    except Exception as exc:
+        print(f"Clarifier failed: {exc}")
+        return 1
     print_json("Clarifier output", clarify_out)
 
     clarified_context = f"Original query: {query}"

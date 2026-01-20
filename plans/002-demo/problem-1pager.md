@@ -20,6 +20,7 @@ Deliver a minimal CLI demo that:
 - **Evidence sufficiency**: The Verifier returns `is_enough = true` with ≥2 supported claims, each having `source_id` and evidence.
 - **Report completeness**: The Writer output includes an executive summary, ≥3 key findings, and citations matching the sources used.
 - **Observability**: The CLI prints JSON for every step; manual timing shows the run completes in <3 minutes per query in demo conditions.
+- **Automated E2E**: A mock-mode end-to-end test passes and validates the full step sequence without manual input.
 
 ## Non-goals
 - Full knowledge graph integration
