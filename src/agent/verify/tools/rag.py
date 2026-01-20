@@ -31,6 +31,7 @@ def get_qdrant_client() -> QdrantRAG:
         _qdrant = QdrantRAG(
             url=settings.qdrant_url,
             collection=settings.qdrant_collection,
+            embedding_dim=settings.embedding_dim,
         )
     return _qdrant
 

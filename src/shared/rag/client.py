@@ -3,7 +3,7 @@
 import hashlib
 
 from qdrant_client import QdrantClient
-from qdrant_client.models import PointStruct
+from qdrant_client.models import Distance, PointStruct, VectorParams
 
 from shared.rag.schemas import VectorDocument, SearchResult
 
@@ -17,15 +17,30 @@ def _arxiv_id_to_point_id(arxiv_id: str) -> int:
 class QdrantRAG:
     """Qdrant client for RAG operations."""
 
-    def __init__(self, url: str, collection: str):
+    def __init__(self, url: str, collection: str, embedding_dim: int = 1536):
         """Initialize Qdrant client.
 
         Args:
             url: Qdrant server URL
             collection: Collection name
+            embedding_dim: Embedding vector dimension (default: 1536 for text-embedding-3-small)
         """
         self.client = QdrantClient(url=url, check_compatibility=False)
         self.collection = collection
+        self._ensure_collection_exists(embedding_dim)
+
+    def _ensure_collection_exists(self, embedding_dim: int) -> None:
+        """Create collection if it doesn't exist."""
+        collections = self.client.get_collections().collections
+        if any(c.name == self.collection for c in collections):
+            return
+        self.client.create_collection(
+            collection_name=self.collection,
+            vectors_config=VectorParams(
+                size=embedding_dim,
+                distance=Distance.COSINE,
+            ),
+        )
 
     def upsert(self, doc: VectorDocument, embedding: list[float]) -> None:
         """Store document with embedding.

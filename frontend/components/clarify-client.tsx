@@ -1,12 +1,32 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import Link from "next/link";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { GraphNodeData } from "../lib/graph";
+import { buildGraph } from "../lib/graph";
 import { prettyJson } from "../lib/json";
-import { parseRunBundle } from "../lib/run-bundle";
+import { getStep, parseRunBundle, sortSteps } from "../lib/run-bundle";
 import { parseStreamEvents } from "../lib/stream";
-import type { RunStep, StreamEvent } from "../lib/types";
+import type { RunBundle, RunStep, StreamEvent } from "../lib/types";
+import PayloadPanel from "./payload-panel";
+import ReportPreview from "./report-preview";
 import StreamPanel from "./stream-panel";
+import TracePanel from "./trace-panel";
+
+const GraphPanel = dynamic(() => import("./graph-panel"), {
+  ssr: false,
+  loading: () => (
+    <div className="graph-shell">
+      <div className="panel-subtitle">Loading graph engine...</div>
+    </div>
+  )
+});
+
+const DEFAULT_MAX_EVENTS = Number.parseInt(
+  process.env.NEXT_PUBLIC_STREAM_MAX_EVENTS ?? "200",
+  10
+);
 
 interface ClarifyOutput {
   is_clear_enough: boolean;
@@ -62,10 +82,32 @@ export default function ClarifyClient() {
     "idle" | "running" | "done" | "error"
   >("idle");
   const [error, setError] = useState<string | null>(null);
+  const [runBundle, setRunBundle] = useState<RunBundle | null>(null);
+  const [selectedStep, setSelectedStep] = useState<RunStep | null>(null);
+  const [selectedNode, setSelectedNode] = useState<GraphNodeData | null>(null);
   const [streamEvents, setStreamEvents] = useState<StreamEvent[]>([]);
   const [selectedEvent, setSelectedEvent] = useState<StreamEvent | null>(null);
+  const [streamCursor, setStreamCursor] = useState(0);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [speed, setSpeed] = useState(1);
+  const [maxEvents, setMaxEvents] = useState(DEFAULT_MAX_EVENTS);
   const [currentAgent, setCurrentAgent] = useState<string | null>(null);
   const streamAbortRef = useRef<AbortController | null>(null);
+
+  const orderedSteps = useMemo(
+    () => (runBundle ? sortSteps(runBundle.steps) : []),
+    [runBundle]
+  );
+  const graphData = useMemo(() => buildGraph(runBundle), [runBundle]);
+  const reportOutput = getStep(runBundle, "write")?.output ?? null;
+  const visualOutput = getStep(runBundle, "visualize")?.output ?? null;
+  const maxVisibleEvents = useMemo(() => {
+    return Math.min(maxEvents, streamEvents.length);
+  }, [maxEvents, streamEvents.length]);
+  const visibleEvents = useMemo(() => {
+    const end = Math.min(streamCursor, maxVisibleEvents);
+    return streamEvents.slice(0, end);
+  }, [streamCursor, streamEvents, maxVisibleEvents]);
 
   const clarifierContext = useMemo(() => {
     if (!originalQuery || !clarifyOutput) {
@@ -77,6 +119,71 @@ export default function ClarifyClient() {
       final: clarifyOutput
     };
   }, [originalQuery, clarifyOutput, rounds]);
+
+  const runMeta = runBundle
+    ? `${runBundle.run_id} | ${new Date(runBundle.created_at).toLocaleString()}`
+    : "No run loaded";
+
+  useEffect(() => {
+    setStreamCursor((current) => Math.min(current, maxVisibleEvents));
+  }, [maxVisibleEvents]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const override = params.get("maxEvents");
+    if (override) {
+      const parsed = Number.parseInt(override, 10);
+      if (!Number.isNaN(parsed)) {
+        setMaxEvents(parsed);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    const storedBundle = window.localStorage.getItem("rn_last_run_bundle");
+    const storedEvents = window.localStorage.getItem("rn_last_stream_events");
+    if (storedBundle && storedEvents) {
+      try {
+        const parsedBundle = parseRunBundle(JSON.parse(storedBundle));
+        const parsedEvents = parseStreamEvents(storedEvents);
+        setRunBundle(parsedBundle);
+        setSelectedStep(parsedBundle.steps[0] ?? null);
+        setStreamEvents(parsedEvents);
+        setStreamCursor(Math.min(parsedEvents.length, maxEvents));
+        setSelectedEvent(parsedEvents[0] ?? null);
+        return;
+      } catch (err) {
+        console.warn("Failed to load stored run bundle:", err);
+      }
+    }
+  }, [maxEvents]);
+
+  useEffect(() => {
+    if (!isPlaying) {
+      return;
+    }
+
+    if (streamCursor >= maxVisibleEvents) {
+      setIsPlaying(false);
+      return;
+    }
+
+    const interval = window.setInterval(() => {
+      setStreamCursor((current) => Math.min(current + 1, maxVisibleEvents));
+    }, Math.max(120, 520 / speed));
+
+    return () => window.clearInterval(interval);
+  }, [isPlaying, speed, streamCursor, maxVisibleEvents]);
+
+  useEffect(() => {
+    if (!runBundle) {
+      setSelectedStep(null);
+      setSelectedNode(null);
+      return;
+    }
+    setSelectedStep((current) => current ?? runBundle.steps[0] ?? null);
+    setSelectedNode(null);
+  }, [runBundle]);
 
   async function runClarifier(query: string) {
     setStatus("asking");
@@ -157,6 +264,13 @@ export default function ClarifyClient() {
     setPendingQuestions([]);
     setAnswerDrafts([]);
     setPipelineStatus("idle");
+    setRunBundle(null);
+    setSelectedStep(null);
+    setSelectedNode(null);
+    setStreamEvents([]);
+    setSelectedEvent(null);
+    setStreamCursor(0);
+    setIsPlaying(false);
     runClarifier(trimmed);
   }
 
