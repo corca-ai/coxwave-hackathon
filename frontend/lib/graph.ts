@@ -20,7 +20,7 @@ export type GraphKind =
   | "citation"
   | "visual";
 
-export interface GraphNodeData {
+export interface GraphNodeData extends Record<string, unknown> {
   label: string;
   subtitle?: string;
   kind: GraphKind;

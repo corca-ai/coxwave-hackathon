@@ -1,7 +1,11 @@
-import type { NodeProps } from "@xyflow/react";
 import type { GraphNodeData } from "../lib/graph";
 
-export default function GraphNodeCard({ data, selected }: NodeProps<GraphNodeData>) {
+interface GraphNodeCardProps {
+  data: GraphNodeData;
+  selected?: boolean;
+}
+
+export default function GraphNodeCard({ data, selected }: GraphNodeCardProps) {
   return (
     <div className={`graph-node ${selected ? "selected" : ""}`}>
       <div className="graph-node-kind">{data.kind}</div>

@@ -33,7 +33,7 @@ export default function GraphPanel({ nodes, edges, onSelectNode }: GraphPanelPro
 
   const handleNodeClick: NodeMouseHandler = (_event, node) => {
     setSelectedNodeId(node.id);
-    onSelectNode(node.data ?? null);
+    onSelectNode((node.data as GraphNodeData) ?? null);
   };
 
   return (

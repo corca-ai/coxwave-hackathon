@@ -8,7 +8,7 @@ import { buildGraph } from "../lib/graph";
 import { prettyJson } from "../lib/json";
 import { getStep, parseRunBundle, sortSteps } from "../lib/run-bundle";
 import { parseStreamEvents } from "../lib/stream";
-import type { RunBundle, RunStep, StreamEvent } from "../lib/types";
+import type { ReportOutput, RunBundle, RunStep, StreamEvent, VisualOutput } from "../lib/types";
 import PayloadPanel from "./payload-panel";
 import ReportPreview from "./report-preview";
 import StreamPanel from "./stream-panel";
@@ -51,8 +51,8 @@ export default function AppClient() {
   );
 
   const graphData = useMemo(() => buildGraph(runBundle), [runBundle]);
-  const reportOutput = getStep(runBundle, "write")?.output ?? null;
-  const visualOutput = getStep(runBundle, "visualize")?.output ?? null;
+  const reportOutput = (getStep(runBundle, "write")?.output as ReportOutput | undefined) ?? null;
+  const visualOutput = (getStep(runBundle, "visualize")?.output as VisualOutput | undefined) ?? null;
 
   const maxVisibleEvents = useMemo(() => {
     return Math.min(maxEvents, streamEvents.length);
