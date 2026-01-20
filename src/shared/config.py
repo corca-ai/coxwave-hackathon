@@ -7,8 +7,8 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 # Light model: For simple/fast tasks (guardrails, simple classification)
 # Heavy model: For detailed/complex tasks (reasoning, analysis, generation)
 
-MODEL_LIGHT = "o3-mini"  # Fast, efficient for simple tasks
-MODEL_HEAVY = "o1"       # Powerful for complex reasoning
+MODEL_LIGHT = "gpt-5-mini"  # Fast, efficient for simple tasks
+MODEL_HEAVY = "gpt-5.2"     # Powerful for complex reasoning
 
 
 class Settings(BaseSettings):
