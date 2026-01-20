@@ -358,3 +358,20 @@ python3 evals_cli.py --agent clarifier --engine dspy --dataset evals/datasets/cl
 |      |      |
 |      |      |
 |      |      |
+
+
+## 서버 띄우기
+
+### 의존성 설치
+```bash
+pip install fastapi uvicorn[standard] sse-starlette
+```
+
+### 서버 실행
+```bash
+python server.py
+```
+또는
+```bash
+uvicorn server:app --reload --port 8000
+```

@@ -3,8 +3,8 @@
 ## 1) CLI 데모 E2E (자동화 + 수동)
 
 ### 자동화 테스트
-- 단위/통합 스모크: `pytest tests/ -v`
-- Demo E2E (mock): `python3 -m unittest tests/test_demo_e2e.py`
+- 단위/통합 스모크: `.venv/bin/python -m pytest tests/ -v`
+- Demo E2E (mock, 결정적/무API키): `.venv/bin/python -m unittest tests/test_demo_e2e.py`
 - (API 키 있을 때) Integration 마커: `.venv/bin/python -m pytest -m integration`
 
 관찰 포인트
@@ -14,14 +14,14 @@
 
 ### 수동 테스트 시나리오
 1. **모호한 질의 (Clarifier 루프 확인)**
-   - `python3 main.py --mock --query "RAG"`
+   - `python3 main.py --query "RAG"`
    - 관찰: Clarifier 질문 출력, 응답/스킵 흐름, Clarifier context JSON 구조
 2. **명확한 질의 (바로 진행)**
-   - `python3 main.py --mock --query "Evaluate long-context reliability techniques"`
+   - `python3 main.py --query "Evaluate long-context reliability techniques"`
    - 관찰: Clarifier가 즉시 is_clear_enough=true, Orchestrator가 Plan→Search→Extract→Verify→Write 순서로 진행
-3. **실제 에이전트 연결 (API 키 필요)**
-   - `python3 main.py --query "Graph RAG for scientific papers"`
-   - 관찰: Search/Extract/Verify 결과가 실제 API 기반으로 생성되고, Verify next_actions가 루프를 유도할 수 있는지
+3. **결정적 재현 필요 시 (옵션)**
+   - `python3 main.py --mock --query "Evaluate long-context reliability techniques"`
+   - 관찰: mock 모드에서도 동일한 섹션/출력 구조 유지
 
 확신을 위한 체크리스트
 - 각 단계 payload가 콘솔에 출력
