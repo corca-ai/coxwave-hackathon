@@ -15,6 +15,11 @@ Clarifier 단독 실행:
 python3 clarifier_cli.py --query "Ambiguous short query"
 ```
 
+Visualizer 단독 실행:
+```bash
+python3 visualizer_cli.py --input path/to/report.json
+```
+
 ## 문제 정의
 
 새로운 분야를 탐구할 때 연구자들은:
@@ -163,6 +168,7 @@ def build_agents() -> DemoAgents:
 - [demo-scenario.md](./demo-scenario.md) - 데모 시나리오 상세
 - [meta-strategy.md](./meta-strategy.md) - 개발 전략
 - [problem-1pager-demo.md](./plans/002-demo/problem-1pager.md) - 데모 성공 기준/측정
+- [visual-output.schema.json](./docs/schemas/visual-output.schema.json) - Visualizer JSON 스키마
 - [retrospective.md](./retrospective.md) - 기존 시스템 구축 회고
 - [kg2 스킬 문서](../.claude/skills/kg2/SKILL.md) - 그래프 운영 규칙/스키마 정본
 
@@ -174,6 +180,9 @@ def build_agents() -> DemoAgents:
 # OPENAI_API_KEY가 없으면 자동으로 skip
 python3 -m unittest tests/test_clarifier.py
 
+# Visualizer 단위 테스트 (OPENAI_API_KEY가 없으면 자동으로 skip)
+python3 -m unittest tests/test_visualizer.py
+
 # Demo E2E (mock)
 python3 -m unittest tests/test_demo_e2e.py
 ```
@@ -183,6 +192,12 @@ python3 -m unittest tests/test_demo_e2e.py
 ```bash
 # Clarifier 단독 확인
 python3 clarifier_cli.py --query "AI alignment"
+
+# Visualizer 단독 확인 (ReportOutput JSON 필요)
+python3 visualizer_cli.py --input path/to/report.json
+
+# Visualizer 단독 확인 (테스트 fixture 사용)
+python3 visualizer_cli.py --input tests/fixtures/visualizer_report.json
 
 # 데모 시나리오 전체 (mock)
 python3 main.py --mock --query "Investigate RAG and hallucination in legal QA"

@@ -272,8 +272,27 @@ class MockVisualizer:
     def run(self, context: str) -> VisualOutput:
         return VisualOutput(
             components=[
-                VisualComponent(type="heading", props={"text": "Demo Report"}),
-                VisualComponent(type="bullets", props={"items": ["Finding 1 from source S1"]}),
+                VisualComponent(type="heading", props={"text": "Demo Report", "level": 1}),
+                VisualComponent(
+                    type="paragraph",
+                    props={"text": "This is a demo summary based on placeholder evidence."},
+                ),
+                VisualComponent(
+                    type="bullets",
+                    props={"items": ["Finding 1 from source S1"], "ordered": False},
+                ),
+                VisualComponent(
+                    type="callout",
+                    props={
+                        "title": "Limitations",
+                        "items": ["Limited sources in mock mode"],
+                        "tone": "note",
+                    },
+                ),
+                VisualComponent(
+                    type="list",
+                    props={"title": "Citations", "items": ["https://example.com/study"]},
+                ),
             ],
             rationale="Basic structure to render the report quickly.",
         )

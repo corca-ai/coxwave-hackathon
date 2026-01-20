@@ -19,14 +19,24 @@ class DemoE2ETest(unittest.TestCase):
 
         buffer = io.StringIO()
         with patch("builtins.input", side_effect=fake_input), redirect_stdout(buffer):
-            exit_code = run_demo(agents, query, visualize=False)
+            exit_code = run_demo(agents, query, visualize=True)
 
         output = buffer.getvalue()
         artifact = write_artifact("demo_e2e.log", output)
         print(f"Demo E2E output saved to {artifact}")
         print(output)
 
-        for section in ["Input", "Clarify", "Plan", "Search", "Extract", "Verify", "Write", "Done"]:
+        for section in [
+            "Input",
+            "Clarify",
+            "Plan",
+            "Search",
+            "Extract",
+            "Verify",
+            "Write",
+            "Visualize",
+            "Done",
+        ]:
             self.assertIn(section, output, msg=f"Missing section in output: {section}")
 
         self.assertEqual(exit_code, 0)
