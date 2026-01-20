@@ -24,7 +24,10 @@ def parse_args() -> argparse.Namespace:
 def read_input(path: str) -> str:
     if path == "-":
         return sys.stdin.read()
-    return Path(path).read_text()
+    file_path = Path(path)
+    if not file_path.exists():
+        raise FileNotFoundError(path)
+    return file_path.read_text()
 
 
 def main() -> int:
@@ -34,7 +37,14 @@ def main() -> int:
         print("OPENAI_API_KEY is not set.")
         return 1
 
-    raw = read_input(args.input)
+    try:
+        raw = read_input(args.input)
+    except FileNotFoundError:
+        print(f"Input file not found: {args.input}")
+        return 1
+    except OSError as exc:
+        print(f"Failed to read input: {exc}")
+        return 1
     try:
         payload = json.loads(raw)
     except json.JSONDecodeError as exc:

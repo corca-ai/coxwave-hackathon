@@ -67,9 +67,21 @@ python3 visualizer_cli.py --input path/to/report.json
 
 ## 조건 충족 여부
 
-- [ ] OpenAI API 사용
+- [ ] OpenAI API 사용 (일부 에이전트만 적용)
 - [ ] 멀티에이전트 구현
 - [x] 실행 가능한 데모 (Mock)
+
+## 에이전트 구현 현황
+
+| Agent | Status | Notes |
+| --- | --- | --- |
+| Clarifier | Implemented (OpenAI Agents SDK) | 단독 CLI + 단위 테스트 |
+| Planner | Mock | placeholder |
+| Searcher | Mock | placeholder |
+| Extractor | Mock | placeholder |
+| Verifier | Mock | placeholder |
+| Writer | Mock | placeholder |
+| Visualizer | Implemented (OpenAI Agents SDK) | 단독 CLI + 단위 테스트 |
 
 ## 아키텍처
 
