@@ -4,6 +4,7 @@ import argparse
 import inspect
 import json
 import os
+import random
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -70,6 +71,12 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help="Optional tag for the artifact filename",
     )
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=None,
+        help="Deterministic shuffle seed (overrides DSPY_SHUFFLE_SEED)",
+    )
     return parser.parse_args()
 
 
@@ -87,6 +94,12 @@ def _resolve_bound(cli_value: Optional[int], env_name: str, default: int) -> int
     if cli_value is not None:
         return max(1, cli_value)
     return max(1, _env_int(env_name, default))
+
+
+def _resolve_seed(cli_value: Optional[int]) -> int:
+    if cli_value is not None:
+        return cli_value
+    return _env_int("DSPY_SHUFFLE_SEED", 42)
 
 
 def _build_optimizer(
@@ -213,6 +226,7 @@ def main() -> int:
             "DSPY_OPT_MAX_ROUNDS",
             "DSPY_OPT_MAX_LABELED_DEMOS",
             "DSPY_OPT_MAX_BOOTSTRAPPED_DEMOS",
+            "DSPY_SHUFFLE_SEED",
             "EVAL_ARTIFACT_DIR",
         ]
     )
@@ -252,6 +266,12 @@ def main() -> int:
         print("No valid examples found in dataset.")
         return 1
 
+    seed = _resolve_seed(args.seed)
+    indices = list(range(len(valid_samples)))
+    random.Random(seed).shuffle(indices)
+    valid_samples = [valid_samples[idx] for idx in indices]
+    examples = [examples[idx] for idx in indices]
+
     train_count = _resolve_bound(args.train_samples, "DSPY_TRAIN_SAMPLES", 4)
     eval_count = _resolve_bound(args.eval_samples, "DSPY_EVAL_SAMPLES", 6)
     total_samples = len(valid_samples)
@@ -265,7 +285,7 @@ def main() -> int:
     train_samples = valid_samples[:train_count]
     eval_samples = valid_samples[train_count : train_count + eval_count]
 
-    max_rounds = _resolve_bound(args.max_rounds, "DSPY_OPT_MAX_ROUNDS", 3)
+    max_rounds = _resolve_bound(args.max_rounds, "DSPY_OPT_MAX_ROUNDS", 2)
     max_labeled = _resolve_bound(args.max_labeled_demos, "DSPY_OPT_MAX_LABELED_DEMOS", 4)
     max_bootstrapped = _resolve_bound(
         args.max_bootstrapped_demos, "DSPY_OPT_MAX_BOOTSTRAPPED_DEMOS", 4

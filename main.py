@@ -256,16 +256,30 @@ class MockSearcher:
 
 class MockExtractor:
     def run(self, context: str) -> ExtractOutput:
+        try:
+            payload = json.loads(context)
+        except json.JSONDecodeError:
+            payload = {}
+        if not isinstance(payload, dict):
+            payload = {}
+        sources = payload.get("sources") if isinstance(payload.get("sources"), list) else []
+        source = sources[0] if sources else {}
+        source_id = str(source.get("source_id") or "S1")
+        snippet = str(source.get("snippet") or "").strip()
+        claim_text = snippet or "Example claim about the topic."
+        evidence = snippet or "The study reports a measurable improvement."
+        gaps = ["Need more evidence on limitations"] if sources else ["No sources provided."]
+
         return ExtractOutput(
             claims=[
                 Claim(
-                    claim="Example claim about the topic.",
-                    evidence="The study reports a measurable improvement.",
-                    source_id="S1",
+                    claim=claim_text,
+                    evidence=evidence,
+                    source_id=source_id,
                     confidence=0.62,
                 )
             ],
-            gaps=["Need more evidence on limitations"],
+            gaps=gaps,
         )
 
 
@@ -301,30 +315,46 @@ class MockWriter:
 
 class MockVisualizer:
     def run(self, context: str) -> VisualOutput:
+        try:
+            payload = json.loads(context)
+        except json.JSONDecodeError:
+            payload = {}
+        if not isinstance(payload, dict):
+            payload = {}
+
+        def _coerce_list(value: object) -> List[str]:
+            if value is None:
+                return []
+            if isinstance(value, list):
+                return [str(item) for item in value if str(item).strip()]
+            return [str(value)]
+
+        title = str(payload.get("title") or "Demo Report")
+        executive_summary = str(payload.get("executive_summary") or "")
+        key_findings = _coerce_list(payload.get("key_findings"))
+        limitations = _coerce_list(payload.get("limitations"))
+        citations = _coerce_list(payload.get("citations"))
+
+        components = [
+            VisualComponent(type="heading", props={"text": title, "level": 1}),
+            VisualComponent(type="paragraph", props={"text": executive_summary}),
+            VisualComponent(type="bullets", props={"items": key_findings, "ordered": False}),
+            VisualComponent(
+                type="callout",
+                props={
+                    "title": "Limitations",
+                    "items": limitations,
+                    "tone": "note",
+                },
+            ),
+            VisualComponent(
+                type="list",
+                props={"title": "Citations", "items": citations},
+            ),
+        ]
+
         return VisualOutput(
-            components=[
-                VisualComponent(type="heading", props={"text": "Demo Report", "level": 1}),
-                VisualComponent(
-                    type="paragraph",
-                    props={"text": "This is a demo summary based on placeholder evidence."},
-                ),
-                VisualComponent(
-                    type="bullets",
-                    props={"items": ["Finding 1 from source S1"], "ordered": False},
-                ),
-                VisualComponent(
-                    type="callout",
-                    props={
-                        "title": "Limitations",
-                        "items": ["Limited sources in mock mode"],
-                        "tone": "note",
-                    },
-                ),
-                VisualComponent(
-                    type="list",
-                    props={"title": "Citations", "items": ["https://example.com/study"]},
-                ),
-            ],
+            components=components,
             rationale="Basic structure to render the report quickly.",
         )
 

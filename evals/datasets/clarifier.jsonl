@@ -4,3 +4,9 @@
 {"id":"clarifier-04","query":"Compare DSPy and prompt engineering for claim extraction","expect":{"is_clear_enough":true,"min_questions":0}}
 {"id":"clarifier-05","query":"GraphDB ontology design","expect":{"is_clear_enough":false,"min_questions":1}}
 {"id":"clarifier-06","query":"Survey of long-context reliability techniques in 2022-2025","expect":{"is_clear_enough":true,"min_questions":0}}
+{"id":"clarifier-07","query":"AI in healthcare","expect":{"is_clear_enough":false,"min_questions":1}}
+{"id":"clarifier-08","query":"Diffusion models for medical imaging diagnostics 2021-2024","expect":{"is_clear_enough":true,"min_questions":0}}
+{"id":"clarifier-09","query":"SPARQL optimization","expect":{"is_clear_enough":false,"min_questions":1}}
+{"id":"clarifier-10","query":"Benchmarking RAG latency vs accuracy on legal QA datasets","expect":{"is_clear_enough":true,"min_questions":0}}
+{"id":"clarifier-11","query":"Knowledge graph entity resolution","expect":{"is_clear_enough":false,"min_questions":1}}
+{"id":"clarifier-12","query":"Survey of multimodal LLM safety guardrails 2022-2025","expect":{"is_clear_enough":true,"min_questions":0}}
