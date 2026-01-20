@@ -3,11 +3,14 @@ from __future__ import annotations
 import json
 import os
 import sys
-from dataclasses import dataclass, replace
+from dataclasses import asdict, dataclass, replace
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, AsyncGenerator, Optional
 
-from agents import Agent, AgentOutputSchema, ModelSettings, Runner
+from agents import Agent, AgentOutputSchema, ItemHelpers, ModelSettings, Runner
+from openai.types.responses import ResponseTextDeltaEvent
+
+from stream_events import StreamEvent, StreamEventTypes
 
 from main import (
     ClarifyOutput,
@@ -123,6 +126,78 @@ class OpenAIClarifier:
         if not isinstance(output, ClarifyOutput):
             raise TypeError("Clarifier output is not ClarifyOutput")
         return _normalize_clarify_output(output, query)
+
+    async def run_stream(self, query: str) -> AsyncGenerator[StreamEvent, None]:
+        load_env(keys=["OPENAI_API_KEY"])
+        if not os.getenv("OPENAI_API_KEY"):
+            raise RuntimeError("OPENAI_API_KEY is not set.")
+
+        seq = 0
+        yield StreamEvent(
+            type=StreamEventTypes.AGENT_START,
+            payload={"input": query},
+            agent="clarifier",
+            sequence=seq,
+        )
+        seq += 1
+
+        try:
+            result = Runner.run_streamed(self._agent, query)
+            async for event in result.stream_events():
+                if event.type == "raw_response_event":
+                    if isinstance(event.data, ResponseTextDeltaEvent):
+                        yield StreamEvent(
+                            type=StreamEventTypes.TEXT_DELTA,
+                            payload={"delta": event.data.delta},
+                            agent="clarifier",
+                            sequence=seq,
+                        )
+                        seq += 1
+                elif event.type == "run_item_stream_event":
+                    if event.item.type == "tool_call_item":
+                        yield StreamEvent(
+                            type=StreamEventTypes.TOOL_CALL,
+                            payload={"name": getattr(event.item, "name", "unknown")},
+                            agent="clarifier",
+                            sequence=seq,
+                        )
+                        seq += 1
+                    elif event.item.type == "tool_call_output_item":
+                        yield StreamEvent(
+                            type=StreamEventTypes.TOOL_OUTPUT,
+                            payload={"output": str(event.item.output)[:500]},
+                            agent="clarifier",
+                            sequence=seq,
+                        )
+                        seq += 1
+                    elif event.item.type == "message_output_item":
+                        text = ItemHelpers.text_message_output(event.item)
+                        yield StreamEvent(
+                            type=StreamEventTypes.MESSAGE_COMPLETE,
+                            payload={"text": text[:1000]},
+                            agent="clarifier",
+                            sequence=seq,
+                        )
+                        seq += 1
+
+            output = result.final_output
+            if not isinstance(output, ClarifyOutput):
+                raise TypeError("Clarifier output is not ClarifyOutput")
+            normalized = _normalize_clarify_output(output, query)
+            yield StreamEvent(
+                type=StreamEventTypes.AGENT_COMPLETE,
+                payload={"output": asdict(normalized)},
+                agent="clarifier",
+                sequence=seq,
+            )
+        except Exception as e:
+            yield StreamEvent(
+                type=StreamEventTypes.ERROR,
+                payload={"error": str(e), "error_type": type(e).__name__},
+                agent="clarifier",
+                sequence=seq,
+            )
+            raise
 
 
 def _normalize_clarify_output(output: ClarifyOutput, query: str) -> ClarifyOutput:
@@ -289,6 +364,115 @@ class OpenAISearcher:
 
         return SearchOutput(refined_query=goal, sources=sources)
 
+    async def run_stream(self, context: str) -> AsyncGenerator[StreamEvent, None]:
+        load_env(keys=["OPENAI_API_KEY"])
+        if not os.getenv("OPENAI_API_KEY"):
+            raise RuntimeError("OPENAI_API_KEY is not set.")
+
+        goal = _extract_goal_from_context(context)
+        namespace, target_new_docs = _extract_search_options(context)
+        artifacts_dir = _get_artifacts_dir()
+        set_search_artifacts_dir(Path(artifacts_dir))
+
+        _PIPELINE_STATE.namespace = namespace
+        _PIPELINE_STATE.goal = goal
+        _PIPELINE_STATE.search_result = None
+        _PIPELINE_STATE.extractor_result = None
+
+        request = SearchRequest(
+            goal=goal,
+            namespace=namespace,
+            constraints=Constraints(target_new_docs=target_new_docs),
+        )
+
+        seq = 0
+        yield StreamEvent(
+            type=StreamEventTypes.AGENT_START,
+            payload={"input": {"goal": goal, "namespace": namespace}},
+            agent="searcher",
+            stage="search",
+            sequence=seq,
+        )
+        seq += 1
+
+        try:
+            result = Runner.run_streamed(search_agent, request.model_dump_json())
+            async for event in result.stream_events():
+                if event.type == "raw_response_event":
+                    if isinstance(event.data, ResponseTextDeltaEvent):
+                        yield StreamEvent(
+                            type=StreamEventTypes.TEXT_DELTA,
+                            payload={"delta": event.data.delta},
+                            agent="searcher",
+                            stage="search",
+                            sequence=seq,
+                        )
+                        seq += 1
+                elif event.type == "run_item_stream_event":
+                    if event.item.type == "tool_call_item":
+                        yield StreamEvent(
+                            type=StreamEventTypes.TOOL_CALL,
+                            payload={"name": getattr(event.item, "name", "unknown")},
+                            agent="searcher",
+                            stage="search",
+                            sequence=seq,
+                        )
+                        seq += 1
+                    elif event.item.type == "tool_call_output_item":
+                        yield StreamEvent(
+                            type=StreamEventTypes.TOOL_OUTPUT,
+                            payload={"output": str(event.item.output)[:500]},
+                            agent="searcher",
+                            stage="search",
+                            sequence=seq,
+                        )
+                        seq += 1
+                    elif event.item.type == "message_output_item":
+                        text = ItemHelpers.text_message_output(event.item)
+                        yield StreamEvent(
+                            type=StreamEventTypes.MESSAGE_COMPLETE,
+                            payload={"text": text[:1000]},
+                            agent="searcher",
+                            stage="search",
+                            sequence=seq,
+                        )
+                        seq += 1
+
+            output = result.final_output
+            if not isinstance(output, SearchResult):
+                raise TypeError("Search output is not SearchResult")
+
+            _PIPELINE_STATE.search_result = output
+
+            sources = [
+                Source(
+                    source_id=paper.arxiv_id,
+                    title=paper.title,
+                    url=paper.url,
+                    snippet=paper.abstract,
+                    why_relevant=paper.why_selected or "Selected by search agent.",
+                )
+                for paper in output.selected_papers
+            ]
+
+            search_output = SearchOutput(refined_query=goal, sources=sources)
+            yield StreamEvent(
+                type=StreamEventTypes.AGENT_COMPLETE,
+                payload={"output": asdict(search_output)},
+                agent="searcher",
+                stage="search",
+                sequence=seq,
+            )
+        except Exception as e:
+            yield StreamEvent(
+                type=StreamEventTypes.ERROR,
+                payload={"error": str(e), "error_type": type(e).__name__},
+                agent="searcher",
+                stage="search",
+                sequence=seq,
+            )
+            raise
+
 
 class OpenAIExtractor:
     def __init__(self) -> None:
@@ -335,6 +519,116 @@ class OpenAIExtractor:
         gaps = [] if claims else ["No claims extracted."]
 
         return ExtractOutput(claims=claims, gaps=gaps)
+
+    async def run_stream(self, context: str) -> AsyncGenerator[StreamEvent, None]:
+        load_env(keys=["OPENAI_API_KEY"])
+        if not os.getenv("OPENAI_API_KEY"):
+            raise RuntimeError("OPENAI_API_KEY is not set.")
+
+        namespace = _PIPELINE_STATE.namespace or _get_default_namespace()
+        goal = _PIPELINE_STATE.goal or "Unknown goal"
+        search_result = _PIPELINE_STATE.search_result
+
+        if search_result is None:
+            search_result = _fallback_search_result(context)
+
+        request = ExtractorRequest(
+            goal=goal,
+            namespace=namespace,
+            search_result=search_result,
+        )
+
+        seq = 0
+        yield StreamEvent(
+            type=StreamEventTypes.AGENT_START,
+            payload={"input": {"goal": goal, "namespace": namespace}},
+            agent="extractor",
+            stage="extract",
+            sequence=seq,
+        )
+        seq += 1
+
+        try:
+            result = Runner.run_streamed(extract_agent, request.model_dump_json())
+            async for event in result.stream_events():
+                if event.type == "raw_response_event":
+                    if isinstance(event.data, ResponseTextDeltaEvent):
+                        yield StreamEvent(
+                            type=StreamEventTypes.TEXT_DELTA,
+                            payload={"delta": event.data.delta},
+                            agent="extractor",
+                            stage="extract",
+                            sequence=seq,
+                        )
+                        seq += 1
+                elif event.type == "run_item_stream_event":
+                    if event.item.type == "tool_call_item":
+                        yield StreamEvent(
+                            type=StreamEventTypes.TOOL_CALL,
+                            payload={"name": getattr(event.item, "name", "unknown")},
+                            agent="extractor",
+                            stage="extract",
+                            sequence=seq,
+                        )
+                        seq += 1
+                    elif event.item.type == "tool_call_output_item":
+                        yield StreamEvent(
+                            type=StreamEventTypes.TOOL_OUTPUT,
+                            payload={"output": str(event.item.output)[:500]},
+                            agent="extractor",
+                            stage="extract",
+                            sequence=seq,
+                        )
+                        seq += 1
+                    elif event.item.type == "message_output_item":
+                        text = ItemHelpers.text_message_output(event.item)
+                        yield StreamEvent(
+                            type=StreamEventTypes.MESSAGE_COMPLETE,
+                            payload={"text": text[:1000]},
+                            agent="extractor",
+                            stage="extract",
+                            sequence=seq,
+                        )
+                        seq += 1
+
+            output = result.final_output
+            if not isinstance(output, ExtractorResult):
+                raise TypeError("Extractor output is not ExtractorResult")
+
+            _PIPELINE_STATE.extractor_result = _normalize_extractor_result(output, search_result)
+
+            claims: list[MainClaim] = []
+            for claim in _PIPELINE_STATE.extractor_result.claims:
+                if claim.evidence is None:
+                    continue
+                claims.append(
+                    MainClaim(
+                        claim=claim.text,
+                        evidence=claim.evidence.quote,
+                        source_id=claim.doc_id,
+                        confidence=claim.confidence,
+                    )
+                )
+
+            gaps = [] if claims else ["No claims extracted."]
+            extract_output = ExtractOutput(claims=claims, gaps=gaps)
+
+            yield StreamEvent(
+                type=StreamEventTypes.AGENT_COMPLETE,
+                payload={"output": asdict(extract_output)},
+                agent="extractor",
+                stage="extract",
+                sequence=seq,
+            )
+        except Exception as e:
+            yield StreamEvent(
+                type=StreamEventTypes.ERROR,
+                payload={"error": str(e), "error_type": type(e).__name__},
+                agent="extractor",
+                stage="extract",
+                sequence=seq,
+            )
+            raise
 
 
 class OpenAIVerifier:
@@ -411,6 +705,144 @@ class OpenAIVerifier:
             next_search_queries=queries,
             next_actions=next_actions,
         )
+
+    async def run_stream(self, context: str) -> AsyncGenerator[StreamEvent, None]:
+        load_env(keys=["OPENAI_API_KEY"])
+        if not os.getenv("OPENAI_API_KEY"):
+            raise RuntimeError("OPENAI_API_KEY is not set.")
+
+        namespace = _PIPELINE_STATE.namespace or _get_default_namespace()
+        goal = _PIPELINE_STATE.goal or "Unknown goal"
+        artifacts_dir = _get_artifacts_dir()
+        set_verify_artifacts_dir(Path(artifacts_dir))
+
+        extractor_result = _PIPELINE_STATE.extractor_result
+        if extractor_result is None:
+            extractor_result = _fallback_extractor_result(context)
+
+        request = VerifierRequest(
+            goal=goal,
+            namespace=namespace,
+            extractor_result=_to_verify_extractor_result(extractor_result),
+            constraints=VerifierConstraints(),
+        )
+
+        seq = 0
+        yield StreamEvent(
+            type=StreamEventTypes.AGENT_START,
+            payload={"input": {"goal": goal, "namespace": namespace}},
+            agent="verifier",
+            stage="verify",
+            sequence=seq,
+        )
+        seq += 1
+
+        try:
+            result = Runner.run_streamed(verifier_agent, request.model_dump_json())
+            async for event in result.stream_events():
+                if event.type == "raw_response_event":
+                    if isinstance(event.data, ResponseTextDeltaEvent):
+                        yield StreamEvent(
+                            type=StreamEventTypes.TEXT_DELTA,
+                            payload={"delta": event.data.delta},
+                            agent="verifier",
+                            stage="verify",
+                            sequence=seq,
+                        )
+                        seq += 1
+                elif event.type == "run_item_stream_event":
+                    if event.item.type == "tool_call_item":
+                        yield StreamEvent(
+                            type=StreamEventTypes.TOOL_CALL,
+                            payload={"name": getattr(event.item, "name", "unknown")},
+                            agent="verifier",
+                            stage="verify",
+                            sequence=seq,
+                        )
+                        seq += 1
+                    elif event.item.type == "tool_call_output_item":
+                        yield StreamEvent(
+                            type=StreamEventTypes.TOOL_OUTPUT,
+                            payload={"output": str(event.item.output)[:500]},
+                            agent="verifier",
+                            stage="verify",
+                            sequence=seq,
+                        )
+                        seq += 1
+                    elif event.item.type == "message_output_item":
+                        text = ItemHelpers.text_message_output(event.item)
+                        yield StreamEvent(
+                            type=StreamEventTypes.MESSAGE_COMPLETE,
+                            payload={"text": text[:1000]},
+                            agent="verifier",
+                            stage="verify",
+                            sequence=seq,
+                        )
+                        seq += 1
+
+            output = result.final_output
+            if not isinstance(output, VerifierResult):
+                raise TypeError("Verifier output is not VerifierResult")
+
+            claim_lookup = {claim.claim_id: claim for claim in request.extractor_result.claims}
+            verdicts: list[MainVerification] = []
+            for judgement in output.claim_judgements:
+                claim = claim_lookup.get(judgement.claim_id)
+                confidence = _confidence_from_status(judgement.status)
+                verdicts.append(
+                    MainVerification(
+                        claim=claim.text if claim else judgement.claim_id,
+                        verdict=judgement.status,
+                        rationale=judgement.reason,
+                        confidence=confidence,
+                        source_id=claim.doc_id if claim else None,
+                        required_evidence=[],
+                    )
+                )
+
+            queries: list[str] = []
+            for action in output.next_actions:
+                for query in action.suggested_queries:
+                    if query not in queries:
+                        queries.append(query)
+
+            next_actions: list[MainNextAction] = []
+            for action in output.next_actions:
+                if action.type == "human_review":
+                    continue
+                next_actions.append(
+                    MainNextAction(
+                        action_type=action.type,
+                        priority=action.priority,
+                        why=action.why,
+                        suggested_queries=action.suggested_queries,
+                        target_concepts=action.target_concepts,
+                    )
+                )
+
+            verify_output = VerifyOutput(
+                verdicts=verdicts,
+                is_enough=output.quality_gate.passed,
+                next_search_queries=queries,
+                next_actions=next_actions,
+            )
+
+            yield StreamEvent(
+                type=StreamEventTypes.AGENT_COMPLETE,
+                payload={"output": asdict(verify_output)},
+                agent="verifier",
+                stage="verify",
+                sequence=seq,
+            )
+        except Exception as e:
+            yield StreamEvent(
+                type=StreamEventTypes.ERROR,
+                payload={"error": str(e), "error_type": type(e).__name__},
+                agent="verifier",
+                stage="verify",
+                sequence=seq,
+            )
+            raise
 
 
 def _fallback_search_result(context: str) -> SearchResult:
@@ -626,6 +1058,88 @@ class OpenAIVisualizer:
         if not isinstance(output, VisualOutput):
             raise TypeError("Visualizer output is not VisualOutput")
         return _normalize_visual_output(output, report)
+
+    async def run_stream(self, context: str) -> AsyncGenerator[StreamEvent, None]:
+        load_env(keys=["OPENAI_API_KEY"])
+        if not os.getenv("OPENAI_API_KEY"):
+            raise RuntimeError("OPENAI_API_KEY is not set.")
+
+        report = _parse_report_context(context)
+
+        seq = 0
+        yield StreamEvent(
+            type=StreamEventTypes.AGENT_START,
+            payload={"input": {"context_length": len(context)}},
+            agent="visualizer",
+            stage="visualize",
+            sequence=seq,
+        )
+        seq += 1
+
+        try:
+            result = Runner.run_streamed(self._agent, context)
+            async for event in result.stream_events():
+                if event.type == "raw_response_event":
+                    if isinstance(event.data, ResponseTextDeltaEvent):
+                        yield StreamEvent(
+                            type=StreamEventTypes.TEXT_DELTA,
+                            payload={"delta": event.data.delta},
+                            agent="visualizer",
+                            stage="visualize",
+                            sequence=seq,
+                        )
+                        seq += 1
+                elif event.type == "run_item_stream_event":
+                    if event.item.type == "tool_call_item":
+                        yield StreamEvent(
+                            type=StreamEventTypes.TOOL_CALL,
+                            payload={"name": getattr(event.item, "name", "unknown")},
+                            agent="visualizer",
+                            stage="visualize",
+                            sequence=seq,
+                        )
+                        seq += 1
+                    elif event.item.type == "tool_call_output_item":
+                        yield StreamEvent(
+                            type=StreamEventTypes.TOOL_OUTPUT,
+                            payload={"output": str(event.item.output)[:500]},
+                            agent="visualizer",
+                            stage="visualize",
+                            sequence=seq,
+                        )
+                        seq += 1
+                    elif event.item.type == "message_output_item":
+                        text = ItemHelpers.text_message_output(event.item)
+                        yield StreamEvent(
+                            type=StreamEventTypes.MESSAGE_COMPLETE,
+                            payload={"text": text[:1000]},
+                            agent="visualizer",
+                            stage="visualize",
+                            sequence=seq,
+                        )
+                        seq += 1
+
+            output = result.final_output
+            if not isinstance(output, VisualOutput):
+                raise TypeError("Visualizer output is not VisualOutput")
+
+            normalized = _normalize_visual_output(output, report)
+            yield StreamEvent(
+                type=StreamEventTypes.AGENT_COMPLETE,
+                payload={"output": asdict(normalized)},
+                agent="visualizer",
+                stage="visualize",
+                sequence=seq,
+            )
+        except Exception as e:
+            yield StreamEvent(
+                type=StreamEventTypes.ERROR,
+                payload={"error": str(e), "error_type": type(e).__name__},
+                agent="visualizer",
+                stage="visualize",
+                sequence=seq,
+            )
+            raise
 
 
 def _parse_report_context(context: str) -> dict[str, Any]:
