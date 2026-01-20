@@ -25,11 +25,9 @@ def verify(
     artifacts_dir: str
 ):
     """Verifier Agent 실행: Extractor 결과 검증"""
-
     load_env(keys=["OPENAI_API_KEY", "OPENAI_MODEL", "OPENAI_TEMPERATURE"])
     if not os.getenv("OPENAI_API_KEY"):
-        click.echo("OPENAI_API_KEY is not set.")
-        raise SystemExit(1)
+        raise click.ClickException("OPENAI_API_KEY is not set.")
 
     # 아티팩트 디렉토리 설정
     artifacts_path = Path(artifacts_dir)
@@ -39,15 +37,12 @@ def verify(
     try:
         with open(extractor_result, encoding="utf-8") as f:
             extractor_data = json.load(f)
-    except FileNotFoundError:
-        click.echo(f"Extractor result not found: {extractor_result}")
-        raise SystemExit(1)
+    except FileNotFoundError as exc:
+        raise click.ClickException(f"Extractor result file not found: {extractor_result}") from exc
     except json.JSONDecodeError as exc:
-        click.echo(f"Extractor result must be JSON: {exc}")
-        raise SystemExit(1)
+        raise click.ClickException(f"Extractor result must be valid JSON: {exc}") from exc
     except OSError as exc:
-        click.echo(f"Failed to read extractor result: {exc}")
-        raise SystemExit(1)
+        raise click.ClickException(f"Failed to read extractor result: {exc}") from exc
 
     request = VerifierRequest(
         goal=goal,
@@ -57,7 +52,7 @@ def verify(
 
     click.echo(f"Verifying: {goal}")
     click.echo(f"Claims: {len(request.extractor_result.claims)}")
-    click.echo("Verifier input:")
+    click.echo("Verify input:")
     click.echo(json.dumps(request.model_dump(), indent=2, ensure_ascii=True))
 
     # Agent 실행 - JSON을 user message로 전달
@@ -71,7 +66,7 @@ def verify(
     click.echo(f"Unsupported Ratio: {output_data['metrics']['unsupported_ratio']:.2%}")
     click.echo(f"Concept Coverage: {output_data['metrics']['concept_coverage']:.2%}")
     click.echo(f"Conflicts: {output_data['metrics']['conflicts_count']}")
-    click.echo("\nVerifier output:")
+    click.echo("Verify output:")
     click.echo(json.dumps(output_data, indent=2, ensure_ascii=True))
 
     if not output_data['quality_gate']['passed']:

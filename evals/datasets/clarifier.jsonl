@@ -1,0 +1,6 @@
+{"id":"clarifier-01","query":"AI alignment","expect":{"is_clear_enough":false,"min_questions":1}}
+{"id":"clarifier-02","query":"RAG for legal QA 2020-2024","expect":{"is_clear_enough":true,"min_questions":0}}
+{"id":"clarifier-03","query":"LLM evals","expect":{"is_clear_enough":false,"min_questions":1}}
+{"id":"clarifier-04","query":"Compare DSPy and prompt engineering for claim extraction","expect":{"is_clear_enough":true,"min_questions":0}}
+{"id":"clarifier-05","query":"GraphDB ontology design","expect":{"is_clear_enough":false,"min_questions":1}}
+{"id":"clarifier-06","query":"Survey of long-context reliability techniques in 2022-2025","expect":{"is_clear_enough":true,"min_questions":0}}

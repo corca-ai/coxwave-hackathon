@@ -8,7 +8,7 @@ import click
 from agents import Runner
 
 from agent.search.agent import search_agent
-from agent.search.schemas import SearchRequest, Constraints
+from agent.search.schemas import Constraints, SearchRequest
 from agent.search.tools.rag import set_artifacts_dir
 from agent.search.clients.local_store import LocalStore
 from env_loader import load_env
@@ -23,8 +23,7 @@ def search(goal: str, namespace: str, target_docs: int, artifacts_dir: str):
     """Search Agent 실행"""
     load_env(keys=["OPENAI_API_KEY", "OPENAI_MODEL", "OPENAI_TEMPERATURE"])
     if not os.getenv("OPENAI_API_KEY"):
-        click.echo("OPENAI_API_KEY is not set.")
-        raise SystemExit(1)
+        raise click.ClickException("OPENAI_API_KEY is not set.")
 
     artifacts_path = Path(artifacts_dir)
     set_artifacts_dir(artifacts_path)
