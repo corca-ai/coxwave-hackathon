@@ -1,0 +1,370 @@
+{
+  "run_id": "run_demo_2026_01_20_001",
+  "created_at": "2026-01-20T15:00:00Z",
+  "query": "Investigate how retrieval-augmented generation affects hallucination in legal QA",
+  "meta": {
+    "mode": "mock",
+    "source": "tests/_artifacts/demo_e2e.log"
+  },
+  "steps": [
+    {
+      "name": "clarify",
+      "status": "ok",
+      "input": {
+        "query": "Investigate how retrieval-augmented generation affects hallucination in legal QA"
+      },
+      "output": {
+        "is_clear_enough": true,
+        "clarifying_questions": [],
+        "interpreted_query": "Investigate how retrieval-augmented generation affects hallucination in legal QA",
+        "assumptions": [
+          "Assuming general scope and recent literature"
+        ]
+      }
+    },
+    {
+      "name": "plan",
+      "status": "ok",
+      "input": {
+        "clarifier": {
+          "original_query": "Investigate how retrieval-augmented generation affects hallucination in legal QA",
+          "rounds": [
+            {
+              "input": "Investigate how retrieval-augmented generation affects hallucination in legal QA",
+              "output": {
+                "is_clear_enough": true,
+                "clarifying_questions": [],
+                "interpreted_query": "Investigate how retrieval-augmented generation affects hallucination in legal QA",
+                "assumptions": [
+                  "Assuming general scope and recent literature"
+                ]
+              },
+              "answers": [],
+              "skipped": false
+            }
+          ],
+          "final": {
+            "is_clear_enough": true,
+            "clarifying_questions": [],
+            "interpreted_query": "Investigate how retrieval-augmented generation affects hallucination in legal QA",
+            "assumptions": [
+              "Assuming general scope and recent literature"
+            ]
+          }
+        }
+      },
+      "output": {
+        "plan_summary": "Define scope, gather sources, extract claims, verify, summarize.",
+        "steps": [
+          "Clarify scope and key terms",
+          "Collect primary sources",
+          "Extract claims and evidence",
+          "Verify and synthesize"
+        ],
+        "success_criteria": [
+          "At least 3 supported claims",
+          "Clear limitations"
+        ],
+        "data_needs": [
+          "Primary sources",
+          "Recent surveys"
+        ]
+      }
+    },
+    {
+      "name": "search",
+      "status": "ok",
+      "input": {
+        "plan": {
+          "plan_summary": "Define scope, gather sources, extract claims, verify, summarize.",
+          "steps": [
+            "Clarify scope and key terms",
+            "Collect primary sources",
+            "Extract claims and evidence",
+            "Verify and synthesize"
+          ],
+          "success_criteria": [
+            "At least 3 supported claims",
+            "Clear limitations"
+          ],
+          "data_needs": [
+            "Primary sources",
+            "Recent surveys"
+          ]
+        },
+        "clarifier": {
+          "original_query": "Investigate how retrieval-augmented generation affects hallucination in legal QA",
+          "rounds": [
+            {
+              "input": "Investigate how retrieval-augmented generation affects hallucination in legal QA",
+              "output": {
+                "is_clear_enough": true,
+                "clarifying_questions": [],
+                "interpreted_query": "Investigate how retrieval-augmented generation affects hallucination in legal QA",
+                "assumptions": [
+                  "Assuming general scope and recent literature"
+                ]
+              },
+              "answers": [],
+              "skipped": false
+            }
+          ],
+          "final": {
+            "is_clear_enough": true,
+            "clarifying_questions": [],
+            "interpreted_query": "Investigate how retrieval-augmented generation affects hallucination in legal QA",
+            "assumptions": [
+              "Assuming general scope and recent literature"
+            ]
+          }
+        }
+      },
+      "output": {
+        "refined_query": "example research query",
+        "sources": [
+          {
+            "source_id": "S1",
+            "title": "Example Primary Study",
+            "url": "https://example.com/study",
+            "snippet": "A study that reports key findings.",
+            "why_relevant": "Primary evidence for the core claim"
+          },
+          {
+            "source_id": "S2",
+            "title": "Example Survey",
+            "url": "https://example.com/survey",
+            "snippet": "A survey of recent work.",
+            "why_relevant": "Provides context and comparisons"
+          }
+        ]
+      }
+    },
+    {
+      "name": "extract",
+      "status": "ok",
+      "input": {
+        "refined_query": "example research query",
+        "sources": [
+          {
+            "source_id": "S1",
+            "title": "Example Primary Study",
+            "url": "https://example.com/study",
+            "snippet": "A study that reports key findings.",
+            "why_relevant": "Primary evidence for the core claim"
+          },
+          {
+            "source_id": "S2",
+            "title": "Example Survey",
+            "url": "https://example.com/survey",
+            "snippet": "A survey of recent work.",
+            "why_relevant": "Provides context and comparisons"
+          }
+        ]
+      },
+      "output": {
+        "claims": [
+          {
+            "claim": "Example claim about the topic.",
+            "evidence": "The study reports a measurable improvement.",
+            "source_id": "S1",
+            "confidence": 0.62
+          }
+        ],
+        "gaps": [
+          "Need more evidence on limitations"
+        ]
+      }
+    },
+    {
+      "name": "verify",
+      "status": "ok",
+      "input": {
+        "claims": [
+          {
+            "claim": "Example claim about the topic.",
+            "evidence": "The study reports a measurable improvement.",
+            "source_id": "S1",
+            "confidence": 0.62
+          }
+        ],
+        "gaps": [
+          "Need more evidence on limitations"
+        ]
+      },
+      "output": {
+        "verdicts": [
+          {
+            "claim": "Example claim about the topic.",
+            "verdict": "supported",
+            "rationale": "Evidence directly mentions the improvement.",
+            "confidence": 0.6,
+            "source_id": "S1",
+            "required_evidence": []
+          }
+        ],
+        "is_enough": true,
+        "next_search_queries": []
+      }
+    },
+    {
+      "name": "write",
+      "status": "ok",
+      "input": {
+        "clarifier": {
+          "original_query": "Investigate how retrieval-augmented generation affects hallucination in legal QA",
+          "rounds": [
+            {
+              "input": "Investigate how retrieval-augmented generation affects hallucination in legal QA",
+              "output": {
+                "is_clear_enough": true,
+                "clarifying_questions": [],
+                "interpreted_query": "Investigate how retrieval-augmented generation affects hallucination in legal QA",
+                "assumptions": [
+                  "Assuming general scope and recent literature"
+                ]
+              },
+              "answers": [],
+              "skipped": false
+            }
+          ],
+          "final": {
+            "is_clear_enough": true,
+            "clarifying_questions": [],
+            "interpreted_query": "Investigate how retrieval-augmented generation affects hallucination in legal QA",
+            "assumptions": [
+              "Assuming general scope and recent literature"
+            ]
+          }
+        },
+        "plan": {
+          "plan_summary": "Define scope, gather sources, extract claims, verify, summarize.",
+          "steps": [
+            "Clarify scope and key terms",
+            "Collect primary sources",
+            "Extract claims and evidence",
+            "Verify and synthesize"
+          ],
+          "success_criteria": [
+            "At least 3 supported claims",
+            "Clear limitations"
+          ],
+          "data_needs": [
+            "Primary sources",
+            "Recent surveys"
+          ]
+        },
+        "sources": {
+          "refined_query": "example research query",
+          "sources": [
+            {
+              "source_id": "S1",
+              "title": "Example Primary Study",
+              "url": "https://example.com/study",
+              "snippet": "A study that reports key findings.",
+              "why_relevant": "Primary evidence for the core claim"
+            },
+            {
+              "source_id": "S2",
+              "title": "Example Survey",
+              "url": "https://example.com/survey",
+              "snippet": "A survey of recent work.",
+              "why_relevant": "Provides context and comparisons"
+            }
+          ]
+        },
+        "supported_claims": [
+          {
+            "claim": "Example claim about the topic.",
+            "verdict": "supported",
+            "rationale": "Evidence directly mentions the improvement.",
+            "confidence": 0.6,
+            "source_id": "S1",
+            "required_evidence": []
+          }
+        ]
+      },
+      "output": {
+        "title": "Demo Report",
+        "executive_summary": "This is a demo summary based on placeholder evidence.",
+        "key_findings": [
+          "Finding 1 from source S1"
+        ],
+        "limitations": [
+          "Limited sources in mock mode"
+        ],
+        "citations": [
+          "https://example.com/study"
+        ],
+        "suggested_visuals": [
+          "Bullet list of findings"
+        ]
+      }
+    },
+    {
+      "name": "visualize",
+      "status": "ok",
+      "input": {
+        "title": "Demo Report",
+        "executive_summary": "This is a demo summary based on placeholder evidence.",
+        "key_findings": [
+          "Finding 1 from source S1"
+        ],
+        "limitations": [
+          "Limited sources in mock mode"
+        ],
+        "citations": [
+          "https://example.com/study"
+        ],
+        "suggested_visuals": [
+          "Bullet list of findings"
+        ]
+      },
+      "output": {
+        "components": [
+          {
+            "type": "heading",
+            "props": {
+              "text": "Demo Report",
+              "level": 1
+            }
+          },
+          {
+            "type": "paragraph",
+            "props": {
+              "text": "This is a demo summary based on placeholder evidence."
+            }
+          },
+          {
+            "type": "bullets",
+            "props": {
+              "items": [
+                "Finding 1 from source S1"
+              ],
+              "ordered": false
+            }
+          },
+          {
+            "type": "callout",
+            "props": {
+              "title": "Limitations",
+              "items": [
+                "Limited sources in mock mode"
+              ],
+              "tone": "note"
+            }
+          },
+          {
+            "type": "list",
+            "props": {
+              "title": "Citations",
+              "items": [
+                "https://example.com/study"
+              ]
+            }
+          }
+        ],
+        "rationale": "Basic structure to render the report quickly."
+      }
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+{"id":"evt_0001","timestamp":"2026-01-20T15:00:00Z","type":"agent_updated_stream_event","agent":"clarifier","sequence":1,"payload":{"message":"Clarifier engaged"}}
+{"id":"evt_0002","timestamp":"2026-01-20T15:00:01Z","type":"raw_response_event","agent":"clarifier","sequence":2,"payload":{"delta":"Parsing query context..."}}
+{"id":"evt_0003","timestamp":"2026-01-20T15:00:02Z","type":"run_item_stream_event","agent":"clarifier","sequence":3,"payload":{"item":"clarify_output","status":"complete"}}
+{"id":"evt_0004","timestamp":"2026-01-20T15:00:05Z","type":"agent_updated_stream_event","agent":"search","sequence":4,"payload":{"message":"Search kickoff"}}
+{"id":"evt_0005","timestamp":"2026-01-20T15:00:06Z","type":"raw_response_event","agent":"search","sequence":5,"payload":{"delta":"Collecting sources..."}}
+{"id":"evt_0006","timestamp":"2026-01-20T15:00:08Z","type":"run_item_stream_event","agent":"search","sequence":6,"payload":{"item":"search_results","count":2}}
+{"id":"evt_0007","timestamp":"2026-01-20T15:00:10Z","type":"agent_updated_stream_event","agent":"verify","sequence":7,"payload":{"message":"Verification in progress"}}
+{"id":"evt_0008","timestamp":"2026-01-20T15:00:11Z","type":"raw_response_event","agent":"verify","sequence":8,"payload":{"delta":"Checking evidence strength..."}}
+{"id":"evt_0009","timestamp":"2026-01-20T15:00:12Z","type":"run_item_stream_event","agent":"verify","sequence":9,"payload":{"item":"verification","verdict":"supported"}}
+{"id":"evt_0010","timestamp":"2026-01-20T15:00:15Z","type":"agent_updated_stream_event","agent":"writer","sequence":10,"payload":{"message":"Synthesizing report"}}

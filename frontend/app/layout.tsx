@@ -1,4 +1,5 @@
 import "./globals.css";
+import "@xyflow/react/dist/style.css";
 import { IBM_Plex_Mono, Space_Grotesk } from "next/font/google";
 
 const spaceGrotesk = Space_Grotesk({
