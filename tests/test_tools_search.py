@@ -1,9 +1,9 @@
 """Tests for search_sources tool."""
 
-from datetime import datetime
 from unittest.mock import MagicMock, patch
 
 import pytest
+import json
 
 from agent.search.schemas import Candidate
 from agent.search.tools.search import _search_sources_impl, search_sources
@@ -49,6 +49,10 @@ class TestSearchSourcesArxiv:
             sources=["arxiv"],
             max_results=10,
         )
+        print("Search input:")
+        print(json.dumps({"queries": ["deep learning"], "sources": ["arxiv"], "max_results": 10}, indent=2, ensure_ascii=True))
+        print("Search output:")
+        print(json.dumps([c.model_dump() for c in result], indent=2, ensure_ascii=True))
 
         assert len(result) == 2
         assert all(isinstance(c, Candidate) for c in result)
@@ -71,6 +75,8 @@ class TestSearchSourcesArxiv:
             sources=["arxiv"],
             categories=["cs.AI", "cs.CL"],
         )
+        print("Search input:")
+        print(json.dumps({"queries": ["transformer"], "sources": ["arxiv"], "categories": ["cs.AI", "cs.CL"]}, indent=2, ensure_ascii=True))
 
         call_args = mock_client.search.call_args[0][0]
         assert call_args.categories == ["cs.AI", "cs.CL"]
@@ -87,6 +93,8 @@ class TestSearchSourcesArxiv:
             sources=["arxiv"],
             time_range_years=3,
         )
+        print("Search input:")
+        print(json.dumps({"queries": ["attention"], "sources": ["arxiv"], "time_range_years": 3}, indent=2, ensure_ascii=True))
 
         call_args = mock_client.search.call_args[0][0]
         assert call_args.time_range_years == 3
@@ -106,6 +114,10 @@ class TestSearchSourcesUnknownSource:
             queries=["test"],
             sources=["unknown_source"],
         )
+        print("Search input:")
+        print(json.dumps({"queries": ["test"], "sources": ["unknown_source"]}, indent=2, ensure_ascii=True))
+        print("Search output:")
+        print(json.dumps([c.model_dump() for c in result], indent=2, ensure_ascii=True))
 
         assert result == []
         mock_client.search.assert_not_called()
@@ -125,6 +137,10 @@ class TestSearchSourcesUnknownSource:
             queries=["test"],
             sources=["arxiv", "unknown_source", "internal"],
         )
+        print("Search input:")
+        print(json.dumps({"queries": ["test"], "sources": ["arxiv", "unknown_source", "internal"]}, indent=2, ensure_ascii=True))
+        print("Search output:")
+        print(json.dumps([c.model_dump() for c in result], indent=2, ensure_ascii=True))
 
         # Should return arxiv results, ignore unknown, and skip internal (not implemented)
         assert len(result) == 1
@@ -159,6 +175,10 @@ class TestSearchSourcesAppliesRanking:
             queries=["deep learning transformers"],
             sources=["arxiv"],
         )
+        print("Search input:")
+        print(json.dumps({"queries": ["deep learning transformers"], "sources": ["arxiv"]}, indent=2, ensure_ascii=True))
+        print("Search output:")
+        print(json.dumps([c.model_dump() for c in result], indent=2, ensure_ascii=True))
 
         # High match candidate should be ranked first
         assert len(result) == 2
@@ -179,6 +199,10 @@ class TestSearchSourcesAppliesRanking:
             queries=["test"],
             sources=["arxiv"],
         )
+        print("Search input:")
+        print(json.dumps({"queries": ["test"], "sources": ["arxiv"]}, indent=2, ensure_ascii=True))
+        print("Search output:")
+        print(json.dumps([c.model_dump() for c in result], indent=2, ensure_ascii=True))
 
         # Should deduplicate
         assert len(result) == 1
@@ -200,6 +224,10 @@ class TestSearchSourcesAppliesRanking:
             sources=["arxiv"],
             max_results=5,
         )
+        print("Search input:")
+        print(json.dumps({"queries": ["test"], "sources": ["arxiv"], "max_results": 5}, indent=2, ensure_ascii=True))
+        print("Search output:")
+        print(json.dumps([c.model_dump() for c in result], indent=2, ensure_ascii=True))
 
         assert len(result) == 5
 
@@ -215,6 +243,8 @@ class TestSearchSourcesDefaultValues:
         mock_arxiv_client_class.return_value = mock_client
 
         _search_sources_impl(queries=["test"])
+        print("Search input:")
+        print(json.dumps({"queries": ["test"]}, indent=2, ensure_ascii=True))
 
         call_args = mock_client.search.call_args[0][0]
         assert call_args.max_results == 80
